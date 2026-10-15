@@ -1,1 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Videos</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #14181f;
+    --muted: #5f6b7a;
+    --line: #dfe3e8;
+    --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151a;
+      --surface: #1b1f26;
+      --text: #eef1f5;
+      --muted: #9aa5b4;
+      --line: #2b313b;
+      --accent: #6ea0ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .view { display: none; min-height: 100vh; padding: 24px; }
+  .view.active { display: block; }
 
+  /* ---------- Home ---------- */
+  .home h1 { margin: 0 0 4px; font-size: 1.75rem; }
+  .home p { margin: 0 0 24px; color: var(--muted); }
+  .grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    padding-bottom: 100px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .thumb {
+    aspect-ratio: 16 / 9;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 2rem;
+  }
+  .card .meta { padding: 10px 12px 12px; }
+  .card .meta strong { display: block; font-size: .95rem; }
+  .card .meta span { color: var(--muted); font-size: .82rem; }
+
+  /* Profile button, bottom right */
+  .profile-btn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid var(--surface);
+    padding: 0;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25);
+    overflow: hidden;
+  }
+  .profile-btn img, .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .profile-btn:focus-visible, .back:focus-visible, .posts-label:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* ---------- Profile page ---------- */
+  .back {
+    background: none;
+    border: 0;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .profile-top {
+    display: flex;
+    justify-content: flex-end;   /* picture on the top right */
+    margin-top: 8px;
+  }
+  .avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 2.2rem;
+    font-weight: 600;
+    overflow: hidden;
+  }
+  .email-row {
+    display: flex;
+    justify-content: space-between;  /* subscribers to the right of email */
+    align-items: baseline;
+    gap: 16px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .email { font-weight: 600; word-break: break-all; }
+  .subs { color: var(--muted); white-space: nowrap; }
+
+  .posts-row {
+    display: flex;
+    justify-content: space-between;  /* created date to the right of posts */
+    align-items: baseline;
+    gap: 16px;
+    margin-top: 48px;               /* a bit above History */
+    flex-wrap: wrap;
+  }
+  .posts-label {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .created { color: var(--muted); font-size: .9rem; }
+
+  .posts-panel {
+    display: none;
+    margin-top: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 4px 16px;
+  }
+  .posts-panel.open { display: block; }
+  .post { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .post:last-child { border-bottom: 0; }
+  .post small { color: var(--muted); }
+
+  /* History sits about 1.5 inch (144px) under the email */
+  .history { margin-top: 96px; }
+  .history h2 { margin: 0 0 12px; font-size: 1.25rem; }
+  .history-list { display: grid; gap: 12px; padding-bottom: 40px; }
+  .hist-item {
+    display: flex;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    align-items: center;
+  }
+  .hist-thumb {
+    width: 120px;
+    aspect-ratio: 16 / 9;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+  }
+  .hist-item strong { display: block; font-size: .95rem; }
+  .hist-item span { color: var(--muted); font-size: .82rem; }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- HOME PAGE -->
+<main id="home" class="view home active">
+  <h1>My Videos</h1>
+  <p>Tap a video to watch it.</p>
+  <div class="grid" id="video-grid"></div>
+
+  <button class="profile-btn" id="open-profile" aria-label="Open your profile"></button>
+</main>
+
+<!-- PROFILE PAGE -->
+<main id="profile" class="view">
+  <button class="back" id="back-home">&larr; Back</button>
+
+  <div class="profile-top">
+    <div class="avatar" id="profile-avatar" aria-label="Your profile picture"></div>
+  </div>
+
+  <div class="email-row">
+    <div class="email" id="profile-email"></div>
+    <div class="subs" id="profile-subs"></div>
+  </div>
+
+  <div class="posts-row">
+    <button class="posts-label" id="posts-toggle" aria-expanded="false" aria-controls="posts-panel">Posts</button>
+    <div class="created" id="profile-created"></div>
+  </div>
+  <div class="posts-panel" id="posts-panel"></div>
+
+  <section class="history">
+    <h2>History</h2>
+    <div class="history-list" id="history-list"></div>
+  </section>
+</main>
+
+<script>
+  /* ====== EDIT YOUR INFO HERE ====== */
+  const user = {
+    name: "Your Name",
+    email: "you@example.com",
+    subscribers: 1280,
+    created: "March 14, 2024",
+    // Put a picture file next to index.html (e.g. "profile.jpg") and set it here.
+    // Leave as "" to show your first initial instead.
+    picture: ""
+  };
+
+  const videos = [
+    { title: "Getting started", views: "1.2K views", color: "#2563eb" },
+    { title: "Behind the scenes", views: "840 views", color: "#0f766e" },
+    { title: "Q&A session", views: "2.5K views", color: "#b45309" },
+    { title: "Weekly update", views: "610 views", color: "#7c3aed" },
+    { title: "Tips and tricks", views: "3.1K views", color: "#be123c" },
+    { title: "Full tutorial", views: "970 views", color: "#475569" }
+  ];
+
+  const posts = [
+    { text: "Thanks for 1,000 subscribers! New video coming this week.", date: "Sep 30, 2026" },
+    { text: "Poll: what should I make next?", date: "Sep 12, 2026" },
+    { text: "Behind-the-scenes photos from the last shoot.", date: "Aug 21, 2026" }
+  ];
+
+  // Recently watched, newest first
+  const history = [
+    { title: "Weekly update", meta: "Watched today", color: "#7c3aed" },
+    { title: "Tips and tricks", meta: "Watched yesterday", color: "#be123c" },
+    { title: "Q&A session", meta: "Watched 3 days ago", color: "#b45309" },
+    { title: "Getting started", meta: "Watched last week", color: "#2563eb" }
+  ];
+  /* ================================= */
+
+  const $ = id => document.getElementById(id);
+  const initial = user.name.trim().charAt(0).toUpperCase();
+
+  function picture(el) {
+    if (user.picture) {
+      const img = document.createElement("img");
+      img.src = user.picture;
+      img.alt = "";
+      img.onerror = () => { el.textContent = initial; img.remove(); };
+      el.appendChild(img);
+    } else {
+      el.textContent = initial;
+    }
+  }
+
+  function show(id) {
+    document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === id));
+    window.scrollTo(0, 0);
+  }
+
+  // Home grid
+  $("video-grid").innerHTML = videos.map(v => `
+    <article class="card">
+      <div class="thumb" style="background:${v.color}">&#9654;</div>
+      <div class="meta"><strong>${v.title}</strong><span>${v.views}</span></div>
+    </article>`).join("");
+
+  // Profile button + profile picture
+  picture($("open-profile"));
+  picture($("profile-avatar"));
+
+  // Profile details
+  $("profile-email").textContent = user.email;
+  $("profile-subs").textContent = user.subscribers.toLocaleString() + " subscribers";
+  $("profile-created").textContent = "Account created " + user.created;
+
+  // Posts
+  $("posts-panel").innerHTML = posts.length
+    ? posts.map(p => `<div class="post"><div>${p.text}</div><small>${p.date}</small></div>`).join("")
+    : '<p class="empty">You have no posts yet.</p>';
+
+  // History
+  $("history-list").innerHTML = history.length
+    ? history.map(h => `
+      <div class="hist-item">
+        <div class="hist-thumb" style="background:${h.color}">&#9654;</div>
+        <div><strong>${h.title}</strong><span>${h.meta}</span></div>
+      </div>`).join("")
+    : '<p class="empty">Videos you watch will show up here.</p>';
+
+  // Interactions
+  $("open-profile").addEventListener("click", () => show("profile"));
+  $("back-home").addEventListener("click", () => show("home"));
+  $("posts-toggle").addEventListener("click", () => {
+    const open = $("posts-panel").classList.toggle("open");
+    $("posts-toggle").setAttribute("aria-expanded", open);
+  });
+</script>
+</body>
+</html>
