@@ -37,7 +37,7 @@ canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:n
 .profile-top{display:flex;justify-content:flex-end;margin-top:8px}
 .avatar{width:88px;height:88px;border-radius:50%;background:var(--a);color:#fff;display:grid;place-items:center;font-size:2.2rem;font-weight:600}
 .email-row,.posts-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
-.email-row{margin-top:12px}.email{font-weight:600;word-break:break-all}.subs{color:var(--m);white-space:nowrap}
+.email-row{margin-top:12px}.email{font-weight:600;word-break:break-all}.right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.subs{color:var(--m);white-space:nowrap}
 .posts-row{margin-top:48px}
 #posts-toggle{background:none;border:0;padding:0;font-size:1.15rem;font-weight:600;color:var(--t);text-decoration:underline;text-underline-offset:4px}
 #posts-panel{display:none;margin-top:12px;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:4px 16px}
@@ -96,13 +96,22 @@ canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:n
 <main id="profile" class="view">
   <button class="back" data-go="home">&larr; Back</button>
   <div class="profile-top"><div class="avatar" id="p-avatar"></div></div>
-  <div class="email-row"><div class="email" id="p-email"></div><div class="subs" id="p-subs"></div></div>
+  <div class="email-row"><div class="email" id="p-email"></div><div class="right"><div class="subs" id="p-subs"></div><button class="btn" id="open-settings">Settings</button></div></div>
   <div class="posts-row">
     <button id="posts-toggle" aria-expanded="false">Posts</button>
     <div class="m" id="p-created"></div>
   </div>
   <div id="posts-panel"></div>
   <section class="history"><h2>History</h2><div id="hist"></div></section>
+</main>
+
+<main id="settings" class="view">
+  <button class="back" data-go="profile">&larr; Back</button>
+  <h2>Settings</h2>
+  <h3 style="margin-bottom:4px">Camera</h3>
+  <p class="m" id="cam-status"></p>
+  <div class="row"><button class="btn" id="cam-toggle"></button></div>
+  <p class="m">Your camera is only used when you film a video.</p>
 </main>
 
 <main id="film" class="view">
@@ -133,7 +142,7 @@ const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
 const photo=s=>`https://picsum.photos/seed/${s}/480/270`;
 const bg=s=>`background-image:url(${photo(s)}),linear-gradient(135deg,#334155,#64748b)`;
-let chips=store("chips",0),hist=store("hist",[]),cur=null,stream=null,mr=null,chunks=[],blobUrl=null,timer=null,gkey=null,tt;
+let camOn=store("camOn",false),chips=store("chips",0),hist=store("hist",[]),cur=null,stream=null,mr=null,chunks=[],blobUrl=null,timer=null,gkey=null,tt;
 
 function setChips(n){chips=n;put("chips",n);$("chipn").textContent=n}
 function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2600)}
@@ -143,6 +152,7 @@ function go(id){
   if(id!="film"&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("pop").hidden=true;
   if(id=="profile")renderProfile();
+  if(id=="settings")renderSettings();
   scrollTo(0,0);
 }
 function renderHome(){
@@ -227,9 +237,25 @@ function build(){
   },16);
 }
 
+/* ---------- Settings ---------- */
+function renderSettings(){
+  $("cam-status").textContent=camOn?"Camera is on. You can film videos.":"Camera is off. Turn it on to film videos.";
+  $("cam-toggle").textContent=camOn?"Turn off camera":"Enable camera";
+}
+$("open-settings").onclick=()=>go("settings");
+$("cam-toggle").onclick=async()=>{
+  if(camOn){camOn=false;put("camOn",false);renderSettings();return}
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    s.getTracks().forEach(t=>t.stop());camOn=true;put("camOn",true);toast("Camera enabled");
+  }catch(e){toast("Camera blocked. Allow it in your browser's site settings, then try again.")}
+  renderSettings();
+};
+
 /* ---------- Filming ---------- */
 $("film-btn").onclick=()=>$("pop").hidden=!$("pop").hidden;
 $("enter").onclick=async()=>{
+  if(!camOn){toast("Enable your camera in Settings first.");return}
   if(chips<3){toast("You need 3 chips. Earn them with the mini games under any video.");return}
   setChips(chips-3);go("film");$("post").hidden=true;$("rec").textContent="Start filming";
   const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");
