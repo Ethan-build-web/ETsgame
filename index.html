@@ -2,317 +2,268 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>My Videos</title>
 <style>
-  :root {
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --text: #14181f;
-    --muted: #5f6b7a;
-    --line: #dfe3e8;
-    --accent: #2563eb;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #12151a;
-      --surface: #1b1f26;
-      --text: #eef1f5;
-      --muted: #9aa5b4;
-      --line: #2b313b;
-      --accent: #6ea0ff;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-    line-height: 1.5;
-    min-height: 100vh;
-  }
-  .view { display: none; min-height: 100vh; padding: 24px; }
-  .view.active { display: block; }
-
-  /* ---------- Home ---------- */
-  .home h1 { margin: 0 0 4px; font-size: 1.75rem; }
-  .home p { margin: 0 0 24px; color: var(--muted); }
-  .grid {
-    display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    padding-bottom: 100px;
-  }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .thumb {
-    aspect-ratio: 16 / 9;
-    display: grid;
-    place-items: center;
-    color: #fff;
-    font-size: 2rem;
-  }
-  .card .meta { padding: 10px 12px 12px; }
-  .card .meta strong { display: block; font-size: .95rem; }
-  .card .meta span { color: var(--muted); font-size: .82rem; }
-
-  /* Profile button, bottom right */
-  .profile-btn {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    border: 3px solid var(--surface);
-    padding: 0;
-    cursor: pointer;
-    background: var(--accent);
-    color: #fff;
-    font-size: 1.5rem;
-    font-weight: 600;
-    box-shadow: 0 4px 14px rgba(0,0,0,.25);
-    overflow: hidden;
-  }
-  .profile-btn img, .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .profile-btn:focus-visible, .back:focus-visible, .posts-label:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
-  }
-
-  /* ---------- Profile page ---------- */
-  .back {
-    background: none;
-    border: 0;
-    color: var(--accent);
-    font: inherit;
-    cursor: pointer;
-    padding: 4px 0;
-  }
-  .profile-top {
-    display: flex;
-    justify-content: flex-end;   /* picture on the top right */
-    margin-top: 8px;
-  }
-  .avatar {
-    width: 88px;
-    height: 88px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #fff;
-    display: grid;
-    place-items: center;
-    font-size: 2.2rem;
-    font-weight: 600;
-    overflow: hidden;
-  }
-  .email-row {
-    display: flex;
-    justify-content: space-between;  /* subscribers to the right of email */
-    align-items: baseline;
-    gap: 16px;
-    margin-top: 12px;
-    flex-wrap: wrap;
-  }
-  .email { font-weight: 600; word-break: break-all; }
-  .subs { color: var(--muted); white-space: nowrap; }
-
-  .posts-row {
-    display: flex;
-    justify-content: space-between;  /* created date to the right of posts */
-    align-items: baseline;
-    gap: 16px;
-    margin-top: 48px;               /* a bit above History */
-    flex-wrap: wrap;
-  }
-  .posts-label {
-    background: none;
-    border: 0;
-    padding: 0;
-    font: inherit;
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: var(--text);
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-  .created { color: var(--muted); font-size: .9rem; }
-
-  .posts-panel {
-    display: none;
-    margin-top: 12px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 4px 16px;
-  }
-  .posts-panel.open { display: block; }
-  .post { padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .post:last-child { border-bottom: 0; }
-  .post small { color: var(--muted); }
-
-  /* History sits about 1.5 inch (144px) under the email */
-  .history { margin-top: 96px; }
-  .history h2 { margin: 0 0 12px; font-size: 1.25rem; }
-  .history-list { display: grid; gap: 12px; padding-bottom: 40px; }
-  .hist-item {
-    display: flex;
-    gap: 12px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px;
-    align-items: center;
-  }
-  .hist-thumb {
-    width: 120px;
-    aspect-ratio: 16 / 9;
-    border-radius: 6px;
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    color: #fff;
-  }
-  .hist-item strong { display: block; font-size: .95rem; }
-  .hist-item span { color: var(--muted); font-size: .82rem; }
-  .empty { color: var(--muted); }
+:root{--bg:#f6f7f9;--s:#fff;--t:#14181f;--m:#5f6b7a;--l:#dfe3e8;--a:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#12151a;--s:#1b1f26;--t:#eef1f5;--m:#9aa5b4;--l:#2b313b;--a:#6ea0ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.5 "Segoe UI",system-ui,Roboto,Arial,sans-serif}
+button,input{font:inherit}button{cursor:pointer}
+.m{color:var(--m);font-size:.9rem}
+.view{display:none;min-height:100vh;padding:60px 20px 120px;max-width:900px;margin:auto}
+.view.on{display:block}
+#chips{position:fixed;top:12px;right:16px;z-index:20;background:var(--s);border:1px solid var(--l);border-radius:20px;padding:4px 14px;font-weight:600}
+#chips i{display:inline-block;width:12px;height:12px;border-radius:50%;background:#f59e0b;border:2px solid #b45309;margin-right:6px}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#14181f;color:#fff;padding:10px 16px;border-radius:8px;z-index:30;display:none;max-width:90%;text-align:center}
+.btn{background:var(--a);color:#fff;border:0;border-radius:8px;padding:8px 14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.row input{flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--l);border-radius:8px;background:var(--s);color:var(--t)}
+.back{background:none;border:0;color:var(--a);padding:4px 0}
+h1{margin:0 0 4px;font-size:1.75rem}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.card{background:var(--s);border:1px solid var(--l);border-radius:10px;overflow:hidden;cursor:pointer}
+.thumb{aspect-ratio:16/9;background-size:cover;background-position:center;display:grid;place-items:center;color:#fff;font-size:2rem;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.meta{padding:10px 12px 12px}.meta strong,.meta span{display:block}.meta span{color:var(--m);font-size:.85rem}
+.profile-btn{position:fixed;right:20px;bottom:20px;width:60px;height:60px;border-radius:50%;border:3px solid var(--s);background:var(--a);color:#fff;font-size:1.5rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25);overflow:hidden;padding:0}
+#film-btn{position:fixed;left:20px;bottom:20px;height:60px;padding:0 22px;border-radius:30px;border:0;background:#e11d48;color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#pop{position:fixed;left:20px;bottom:92px;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:12px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#pop[hidden],[hidden]{display:none!important}
+button:focus-visible,.card:focus-visible{outline:3px solid var(--a);outline-offset:3px}
+video{width:100%;max-height:60vh;background:#000;border-radius:10px;display:block}
+canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:none;background:#222}
+#pad{display:flex;gap:8px;margin:8px 0}#pad button{width:52px;height:44px;border-radius:8px;border:1px solid var(--l);background:var(--s);color:var(--t)}
+.cm{padding:8px 0;border-bottom:1px solid var(--l)}
+.profile-top{display:flex;justify-content:flex-end;margin-top:8px}
+.avatar{width:88px;height:88px;border-radius:50%;background:var(--a);color:#fff;display:grid;place-items:center;font-size:2.2rem;font-weight:600}
+.email-row,.posts-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+.email-row{margin-top:12px}.email{font-weight:600;word-break:break-all}.subs{color:var(--m);white-space:nowrap}
+.posts-row{margin-top:48px}
+#posts-toggle{background:none;border:0;padding:0;font-size:1.15rem;font-weight:600;color:var(--t);text-decoration:underline;text-underline-offset:4px}
+#posts-panel{display:none;margin-top:12px;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:4px 16px}
+#posts-panel.open{display:block}#posts-panel div{padding:10px 0;border-bottom:1px solid var(--l)}#posts-panel div:last-child{border:0}
+.history{margin-top:96px}.history h2{margin:0 0 12px;font-size:1.25rem}
+.hist{display:flex;gap:12px;align-items:center;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:10px;margin-bottom:12px;cursor:pointer}
+.hist .thumb{width:120px;flex-shrink:0;border-radius:6px;font-size:1rem}
+.hist strong,.hist span{display:block}.hist span{color:var(--m);font-size:.85rem}
 </style>
 </head>
 <body>
+<div id="chips"><i></i>Chips: <b id="chipn">0</b></div>
+<div id="toast" role="status"></div>
 
-<!-- HOME PAGE -->
-<main id="home" class="view home active">
+<main id="home" class="view on">
   <h1>My Videos</h1>
-  <p>Tap a video to watch it.</p>
-  <div class="grid" id="video-grid"></div>
-
+  <p class="m">Tap a video to watch it.</p>
+  <div class="grid" id="grid"></div>
+  <button id="film-btn" aria-label="Film a video">&#127916; Film</button>
+  <div id="pop" hidden>
+    <button class="btn" id="enter">Enter chips (3)</button>
+  </div>
   <button class="profile-btn" id="open-profile" aria-label="Open your profile"></button>
 </main>
 
-<!-- PROFILE PAGE -->
-<main id="profile" class="view">
-  <button class="back" id="back-home">&larr; Back</button>
-
-  <div class="profile-top">
-    <div class="avatar" id="profile-avatar" aria-label="Your profile picture"></div>
-  </div>
-
-  <div class="email-row">
-    <div class="email" id="profile-email"></div>
-    <div class="subs" id="profile-subs"></div>
-  </div>
-
-  <div class="posts-row">
-    <button class="posts-label" id="posts-toggle" aria-expanded="false" aria-controls="posts-panel">Posts</button>
-    <div class="created" id="profile-created"></div>
-  </div>
-  <div class="posts-panel" id="posts-panel"></div>
-
-  <section class="history">
-    <h2>History</h2>
-    <div class="history-list" id="history-list"></div>
+<main id="watch" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <video id="player" controls playsinline></video>
+  <h2 id="w-title" style="margin:12px 0 0"></h2>
+  <div id="w-meta" class="m"></div>
+  <section>
+    <h3>Mini games</h3>
+    <p class="m">Earn chips here. You need 3 chips to post a video.</p>
+    <div class="row">
+      <button class="btn" data-game="road">Cross the road</button>
+      <button class="btn" data-game="zombie">Zombie fight</button>
+      <button class="btn" data-game="build">Chip tower</button>
+    </div>
+    <div id="gbox" hidden>
+      <canvas id="cv" width="320" height="320"></canvas>
+      <div id="pad">
+        <button data-d="0,-1" aria-label="Up">&#9650;</button><button data-d="-1,0" aria-label="Left">&#9664;</button>
+        <button data-d="1,0" aria-label="Right">&#9654;</button><button data-d="0,1" aria-label="Down">&#9660;</button>
+      </div>
+      <div class="m" id="ginfo"></div>
+      <button class="btn" id="gstop" style="margin-top:8px">Close game</button>
+    </div>
+  </section>
+  <section>
+    <h3 id="c-head">Comments</h3>
+    <div class="row"><input id="cin" placeholder="Add a comment"><button class="btn" id="cbtn">Post comment</button></div>
+    <div id="clist"></div>
   </section>
 </main>
 
+<main id="profile" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <div class="profile-top"><div class="avatar" id="p-avatar"></div></div>
+  <div class="email-row"><div class="email" id="p-email"></div><div class="subs" id="p-subs"></div></div>
+  <div class="posts-row">
+    <button id="posts-toggle" aria-expanded="false">Posts</button>
+    <div class="m" id="p-created"></div>
+  </div>
+  <div id="posts-panel"></div>
+  <section class="history"><h2>History</h2><div id="hist"></div></section>
+</main>
+
+<main id="film" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <h2>Film a video</h2>
+  <video id="cam" muted playsinline autoplay></video>
+  <div class="row"><button class="btn" id="rec">Start filming</button><button class="btn" id="post" hidden>Post video</button></div>
+  <div class="m" id="fmsg"></div>
+</main>
+
 <script>
-  /* ====== EDIT YOUR INFO HERE ====== */
-  const user = {
-    name: "Your Name",
-    email: "you@example.com",
-    subscribers: 1280,
-    created: "March 14, 2024",
-    // Put a picture file next to index.html (e.g. "profile.jpg") and set it here.
-    // Leave as "" to show your first initial instead.
-    picture: ""
+/* ===== EDIT YOUR INFO HERE ===== */
+const user={name:"Your Name",email:"you@example.com",subscribers:1280,created:"March 14, 2024"};
+const SRC="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"; // sample video
+const videos=[
+ {id:1,title:"Sunrise hike",creator:"TrailTalk",views:"1.2K views",seed:"mountain",comments:[["Maya","Gorgeous view!"],["Leo","Which trail is this?"]]},
+ {id:2,title:"Street food tour",creator:"NightBite",views:"845K views",seed:"streetfood",comments:[["Sam","Now I'm hungry."],["Ana","Great editing."]]},
+ {id:3,title:"Skate park tricks",creator:"RampRiot",views:"96K views",seed:"skatepark",comments:[["Jo","That last trick!"]]},
+ {id:4,title:"Cozy cooking",creator:"PanAndPine",views:"23K views",seed:"kitchen",comments:[["Priya","Making this tonight."]]},
+ {id:5,title:"City timelapse",creator:"Lumen Lab",views:"410K views",seed:"skyline",comments:[["Ben","So smooth."],["Kai","What camera?"]]},
+ {id:6,title:"Puppy training",creator:"Good Boy Club",views:"2.3M views",seed:"puppy",comments:[["Zoe","Best dog ever."]]}
+];
+const posts=["Thanks for 1,000 subscribers! New video coming this week.","Poll: what should I make next?"];
+/* =============================== */
+const $=i=>document.getElementById(i);
+const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
+const photo=s=>`https://picsum.photos/seed/${s}/480/270`;
+const bg=s=>`background-image:url(${photo(s)}),linear-gradient(135deg,#334155,#64748b)`;
+let chips=store("chips",0),hist=store("hist",[]),cur=null,stream=null,mr=null,chunks=[],blobUrl=null,timer=null,gkey=null,tt;
+
+function setChips(n){chips=n;put("chips",n);$("chipn").textContent=n}
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2600)}
+function go(id){
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==id));
+  if(id!="watch"){$("player").pause();stopGame()}
+  if(id!="film"&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $("pop").hidden=true;
+  if(id=="profile")renderProfile();
+  scrollTo(0,0);
+}
+function renderHome(){
+  $("grid").innerHTML=videos.map(v=>`<div class="card" role="button" tabindex="0" data-id="${v.id}">
+   <div class="thumb" style="${bg(v.seed)}">&#9654;</div>
+   <div class="meta"><strong>${esc(v.title)}</strong><span>By ${esc(v.creator)}</span><span>${esc(v.views)}</span></div></div>`).join("");
+}
+function renderProfile(){
+  $("p-avatar").textContent=user.name.trim().charAt(0).toUpperCase();
+  $("p-email").textContent=user.email;
+  $("p-subs").textContent=user.subscribers.toLocaleString()+" subscribers";
+  $("p-created").textContent="Account created "+user.created;
+  $("posts-panel").innerHTML=posts.length?posts.map(p=>`<div>${esc(p)}</div>`).join(""):'<div class="m">You have no posts yet.</div>';
+  const h=hist.map(id=>videos.find(v=>v.id==id)).filter(Boolean);
+  $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb" style="${bg(v.seed)}">&#9654;</div><div><strong>${esc(v.title)}</strong><span>By ${esc(v.creator)}</span><span>${esc(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
+}
+function renderComments(){
+  $("c-head").textContent="Comments ("+cur.comments.length+")";
+  $("clist").innerHTML=cur.comments.length?cur.comments.map(([n,t])=>`<div class="cm"><b>${esc(n)}</b><div>${esc(t)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
+}
+function openVideo(id){
+  cur=videos.find(v=>v.id==id);if(!cur)return;
+  const p=$("player");p.poster=photo(cur.seed);p.src=cur.src||SRC;p.play().catch(()=>{});
+  $("w-title").textContent=cur.title;$("w-meta").textContent="By "+cur.creator+" - "+cur.views;
+  hist=[cur.id,...hist.filter(x=>x!=cur.id)].slice(0,8);put("hist",hist);
+  renderComments();go("watch");
+}
+
+/* ---------- Mini games ---------- */
+const cv=$("cv"),g=cv.getContext("2d"),W=320;
+function earn(n,why){setChips(chips+n);toast("+"+n+" chip"+(n>1?"s":"")+": "+why)}
+function stopGame(){clearInterval(timer);timer=null;if(gkey)document.removeEventListener("keydown",gkey);gkey=null;cv.onpointerdown=null;$("gbox").hidden=true}
+function startGame(k){stopGame();$("gbox").hidden=false;$("pad").hidden=k!="road";({road,zombie,build})[k]()}
+const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*W/r.height]};
+
+function road(){
+  const S=40,cars=[];let p;const reset=()=>p={x:4,y:7};reset();
+  for(let r=1;r<7;r++)for(let k=0;k<2;k++)cars.push({r,x:k*170+r*23,v:(r%2?1:-1)*(1.4+r*.35)});
+  const mv=(dx,dy)=>{p.x=Math.max(0,Math.min(7,p.x+dx));p.y=Math.min(7,p.y+dy);if(p.y==0){earn(1,"you crossed the road");reset()}};
+  $("pad").onclick=e=>{const d=e.target.dataset.d;if(d)mv(...d.split(",").map(Number))};
+  gkey=e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(m){e.preventDefault();mv(...m)}};
+  document.addEventListener("keydown",gkey);
+  $("ginfo").textContent="Reach the top without getting hit. Each crossing earns 1 chip.";
+  timer=setInterval(()=>{
+    g.fillStyle="#5aa05a";g.fillRect(0,0,W,W);g.fillStyle="#444";g.fillRect(0,S,W,6*S);
+    cars.forEach(c=>{c.x+=c.v;if(c.x>W)c.x=-50;if(c.x<-50)c.x=W;g.fillStyle=c.r%2?"#e11d48":"#f59e0b";g.fillRect(c.x,c.r*S+8,46,24)});
+    g.fillStyle="#2563eb";g.fillRect(p.x*S+8,p.y*S+8,24,24);
+    if(cars.some(c=>c.r==p.y&&p.x*S+32>c.x&&p.x*S+8<c.x+46)){reset();toast("You got hit. Try again.")}
+  },30);
+}
+
+function zombie(){
+  let z=[],kills=0,life=3,t=0;
+  $("ginfo").textContent="Tap zombies before they reach you. Every 5 defeated earns 1 chip.";
+  cv.onpointerdown=e=>{const[x,y]=pos(e),i=z.findIndex(o=>Math.hypot(o.x-x,o.y-y)<28);if(i>-1){z.splice(i,1);if(++kills%5==0)earn(1,"zombies defeated")}};
+  timer=setInterval(()=>{
+    t++;if(t%30==0){const a=Math.random()*6.28;z.push({x:160+Math.cos(a)*170,y:160+Math.sin(a)*170})}
+    g.fillStyle="#1f2937";g.fillRect(0,0,W,W);g.font="28px serif";g.textAlign="center";g.textBaseline="middle";g.fillText("\u{1F9CD}",160,160);
+    z.forEach(o=>{const d=Math.hypot(160-o.x,160-o.y);o.x+=(160-o.x)/d;o.y+=(160-o.y)/d;g.fillText("\u{1F9DF}",o.x,o.y)});
+    const hit=z.filter(o=>Math.hypot(160-o.x,160-o.y)<20);
+    if(hit.length){z=z.filter(o=>!hit.includes(o));life-=hit.length;if(life<=0){life=3;kills=0;z=[];toast("Game over. Starting again.")}}
+    g.fillStyle="#fff";g.font="14px sans-serif";g.textAlign="left";g.fillText("Lives "+life+"   Defeated "+kills,8,14);
+  },30);
+}
+
+function build(){
+  let L=[{x:110,w:100}],c={x:0,w:100,d:2.6},n=0;
+  $("ginfo").textContent="Tap (or press space) to drop the block. Stack 5 floors to earn 1 chip.";
+  const drop=()=>{
+    const t=L[L.length-1],l=Math.max(c.x,t.x),r=Math.min(c.x+c.w,t.x+t.w);
+    if(r-l<=2){L=[{x:110,w:100}];c={x:0,w:100,d:2.6};n=0;toast("The tower fell. Build again.");return}
+    L.push({x:l,w:r-l});c={x:0,w:r-l,d:c.d*1.04};if(++n%5==0)earn(1,"tower built");
   };
+  cv.onpointerdown=drop;
+  gkey=e=>{if(e.code=="Space"){e.preventDefault();drop()}};document.addEventListener("keydown",gkey);
+  timer=setInterval(()=>{
+    c.x+=c.d;if(c.x<0||c.x+c.w>W)c.d*=-1;
+    g.fillStyle="#bfdbfe";g.fillRect(0,0,W,W);const off=Math.max(0,L.length-12)*24;
+    L.forEach((b,i)=>{g.fillStyle=i%2?"#b45309":"#d97706";g.fillRect(b.x,W-24*(i+1)+off,b.w,22)});
+    g.fillStyle="#2563eb";g.fillRect(c.x,W-24*(L.length+1)+off,c.w,22);
+    g.fillStyle="#14181f";g.font="14px sans-serif";g.textAlign="left";g.fillText("Floors "+n,8,16);
+  },16);
+}
 
-  const videos = [
-    { title: "Getting started", views: "1.2K views", color: "#2563eb" },
-    { title: "Behind the scenes", views: "840 views", color: "#0f766e" },
-    { title: "Q&A session", views: "2.5K views", color: "#b45309" },
-    { title: "Weekly update", views: "610 views", color: "#7c3aed" },
-    { title: "Tips and tricks", views: "3.1K views", color: "#be123c" },
-    { title: "Full tutorial", views: "970 views", color: "#475569" }
-  ];
+/* ---------- Filming ---------- */
+$("film-btn").onclick=()=>$("pop").hidden=!$("pop").hidden;
+$("enter").onclick=async()=>{
+  if(chips<3){toast("You need 3 chips. Earn them with the mini games under any video.");return}
+  setChips(chips-3);go("film");$("post").hidden=true;$("rec").textContent="Start filming";
+  const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    c.srcObject=stream;$("fmsg").textContent="Camera ready. 3 chips used.";
+  }catch(e){setChips(chips+3);go("home");toast("Camera not available. Your 3 chips were returned.")}
+};
+$("rec").onclick=()=>{
+  if(!stream)return;
+  if(mr&&mr.state=="recording"){mr.stop();return}
+  const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");c.srcObject=stream;
+  chunks=[];mr=new MediaRecorder(stream);mr.ondataavailable=e=>chunks.push(e.data);
+  mr.onstop=()=>{blobUrl=URL.createObjectURL(new Blob(chunks,{type:mr.mimeType}));c.srcObject=null;c.src=blobUrl;c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("post").hidden=false};
+  mr.start();$("rec").textContent="Stop filming";$("post").hidden=true;
+};
+$("post").onclick=()=>{
+  const n=videos.filter(v=>v.mine).length+1;
+  videos.unshift({id:Date.now(),title:"My video "+n,creator:"You",views:"0 views",seed:"myvideo"+n,src:blobUrl,mine:1,comments:[]});
+  posts.unshift("Posted a video: My video "+n);blobUrl=null;renderHome();toast("Video posted");go("home");
+};
 
-  const posts = [
-    { text: "Thanks for 1,000 subscribers! New video coming this week.", date: "Sep 30, 2026" },
-    { text: "Poll: what should I make next?", date: "Sep 12, 2026" },
-    { text: "Behind-the-scenes photos from the last shoot.", date: "Aug 21, 2026" }
-  ];
-
-  // Recently watched, newest first
-  const history = [
-    { title: "Weekly update", meta: "Watched today", color: "#7c3aed" },
-    { title: "Tips and tricks", meta: "Watched yesterday", color: "#be123c" },
-    { title: "Q&A session", meta: "Watched 3 days ago", color: "#b45309" },
-    { title: "Getting started", meta: "Watched last week", color: "#2563eb" }
-  ];
-  /* ================================= */
-
-  const $ = id => document.getElementById(id);
-  const initial = user.name.trim().charAt(0).toUpperCase();
-
-  function picture(el) {
-    if (user.picture) {
-      const img = document.createElement("img");
-      img.src = user.picture;
-      img.alt = "";
-      img.onerror = () => { el.textContent = initial; img.remove(); };
-      el.appendChild(img);
-    } else {
-      el.textContent = initial;
-    }
-  }
-
-  function show(id) {
-    document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === id));
-    window.scrollTo(0, 0);
-  }
-
-  // Home grid
-  $("video-grid").innerHTML = videos.map(v => `
-    <article class="card">
-      <div class="thumb" style="background:${v.color}">&#9654;</div>
-      <div class="meta"><strong>${v.title}</strong><span>${v.views}</span></div>
-    </article>`).join("");
-
-  // Profile button + profile picture
-  picture($("open-profile"));
-  picture($("profile-avatar"));
-
-  // Profile details
-  $("profile-email").textContent = user.email;
-  $("profile-subs").textContent = user.subscribers.toLocaleString() + " subscribers";
-  $("profile-created").textContent = "Account created " + user.created;
-
-  // Posts
-  $("posts-panel").innerHTML = posts.length
-    ? posts.map(p => `<div class="post"><div>${p.text}</div><small>${p.date}</small></div>`).join("")
-    : '<p class="empty">You have no posts yet.</p>';
-
-  // History
-  $("history-list").innerHTML = history.length
-    ? history.map(h => `
-      <div class="hist-item">
-        <div class="hist-thumb" style="background:${h.color}">&#9654;</div>
-        <div><strong>${h.title}</strong><span>${h.meta}</span></div>
-      </div>`).join("")
-    : '<p class="empty">Videos you watch will show up here.</p>';
-
-  // Interactions
-  $("open-profile").addEventListener("click", () => show("profile"));
-  $("back-home").addEventListener("click", () => show("home"));
-  $("posts-toggle").addEventListener("click", () => {
-    const open = $("posts-panel").classList.toggle("open");
-    $("posts-toggle").setAttribute("aria-expanded", open);
-  });
+/* ---------- Wiring ---------- */
+document.addEventListener("click",e=>{
+  const a=e.target.closest("[data-id]"),b=e.target.closest("[data-go]"),m=e.target.closest("[data-game]");
+  if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game);
+});
+document.addEventListener("keydown",e=>{const a=e.target.closest&&e.target.closest("[data-id]");if(a&&e.key=="Enter")openVideo(a.dataset.id)});
+$("gstop").onclick=stopGame;
+$("open-profile").onclick=()=>go("profile");
+$("open-profile").textContent=user.name.trim().charAt(0).toUpperCase();
+$("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
+$("cbtn").onclick=()=>{const t=$("cin").value.trim();if(!t)return;cur.comments.unshift(["You",t]);$("cin").value="";renderComments()};
+setChips(chips);renderHome();
 </script>
 </body>
 </html>
