@@ -46,20 +46,42 @@ canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:n
 .hist{display:flex;gap:12px;align-items:center;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:10px;margin-bottom:12px;cursor:pointer}
 .hist .thumb{width:120px;flex-shrink:0;border-radius:6px;font-size:1rem}
 .hist strong,.hist span{display:block}.hist span{color:var(--m);font-size:.85rem}
+
+input{font:inherit}
+.box{display:grid;gap:10px;max-width:360px}
+.box input{padding:10px 12px;border:1px solid var(--l);border-radius:8px;background:var(--s);color:var(--t)}
+.mav{display:inline-grid;place-items:center;border-radius:50%;background:var(--a) center/cover;color:#fff;font-size:.8rem;font-weight:600;vertical-align:middle;margin-right:6px}
+.thumb>*{grid-area:1/1}.thumb video{width:100%;height:100%;max-height:none;object-fit:cover;border-radius:0}
+.pv strong{display:block}#posts-panel .pv div{padding:0;border:0}
+.del{background:#b91c1c;margin-top:6px}.gray{background:var(--m)}
+.empty{text-align:center;color:var(--m);padding:40px 0}
 </style>
 </head>
 <body>
-<div id="chips"><i></i>Chips: <b id="chipn">0</b></div>
+<div id="chips" hidden><i></i>Chips: <b id="chipn">0</b></div>
 <div id="toast" role="status"></div>
 
-<main id="home" class="view on">
+<main id="auth-view" class="view on">
   <h1>My Videos</h1>
-  <p class="m">Tap a video to watch it.</p>
+  <p class="m">Create an account to watch, film and post videos.</p>
+  <form id="auth" class="box">
+    <input id="a-name" placeholder="Your name" autocomplete="name" maxlength="40">
+    <input id="a-email" type="email" placeholder="Email" autocomplete="email" required>
+    <input id="a-pass" type="password" placeholder="Password (6+ characters)" required>
+    <button class="btn" id="a-submit">Create account</button>
+    <div class="m" id="a-err" role="alert"></div>
+  </form>
+  <button class="back" id="a-switch" type="button">I already have an account</button>
+  <p class="m">Accounts and videos are saved in this browser only.</p>
+</main>
+
+<main id="home" class="view">
+  <h1>Videos</h1>
+  <p class="m">Videos posted by everyone with an account on this browser.</p>
+  <div class="row"><button class="btn" data-go="gamesview">Play mini games</button></div>
   <div class="grid" id="grid"></div>
   <button id="film-btn" aria-label="Film a video">&#127916; Film</button>
-  <div id="pop" hidden>
-    <button class="btn" id="enter">Enter chips (3)</button>
-  </div>
+  <div id="pop" hidden><button class="btn" id="enter">Enter chips (3)</button></div>
   <button class="profile-btn" id="open-profile" aria-label="Open your profile"></button>
 </main>
 
@@ -68,24 +90,26 @@ canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:n
   <video id="player" controls playsinline></video>
   <h2 id="w-title" style="margin:12px 0 0"></h2>
   <div id="w-meta" class="m"></div>
-  <section>
-    <h3>Mini games</h3>
-    <p class="m">Earn chips here. You need 3 chips to post a video.</p>
-    <div class="row">
-      <button class="btn" data-game="road">Cross the road</button>
-      <button class="btn" data-game="zombie">Zombie fight</button>
-      <button class="btn" data-game="build">Chip tower</button>
-    </div>
-    <div id="gbox" hidden>
-      <canvas id="cv" width="320" height="320"></canvas>
-      <div id="pad">
-        <button data-d="0,-1" aria-label="Up">&#9650;</button><button data-d="-1,0" aria-label="Left">&#9664;</button>
-        <button data-d="1,0" aria-label="Right">&#9654;</button><button data-d="0,1" aria-label="Down">&#9660;</button>
+  <div id="slot-watch">
+    <section id="games">
+      <h3>Mini games</h3>
+      <p class="m">Earn chips here. You need 3 chips to post a video.</p>
+      <div class="row">
+        <button class="btn" data-game="road">Cross the road</button>
+        <button class="btn" data-game="zombie">Zombie fight</button>
+        <button class="btn" data-game="build">Chip tower</button>
       </div>
-      <div class="m" id="ginfo"></div>
-      <button class="btn" id="gstop" style="margin-top:8px">Close game</button>
-    </div>
-  </section>
+      <div id="gbox" hidden>
+        <canvas id="cv" width="320" height="320"></canvas>
+        <div id="pad">
+          <button data-d="0,-1" aria-label="Up">&#9650;</button><button data-d="-1,0" aria-label="Left">&#9664;</button>
+          <button data-d="1,0" aria-label="Right">&#9654;</button><button data-d="0,1" aria-label="Down">&#9660;</button>
+        </div>
+        <div class="m" id="ginfo"></div>
+        <button class="btn" id="gstop" style="margin-top:8px">Close game</button>
+      </div>
+    </section>
+  </div>
   <section>
     <h3 id="c-head">Comments</h3>
     <div class="row"><input id="cin" placeholder="Add a comment"><button class="btn" id="cbtn">Post comment</button></div>
@@ -93,16 +117,39 @@ canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:n
   </section>
 </main>
 
+<main id="gamesview" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <div id="slot-games"></div>
+</main>
+
 <main id="profile" class="view">
   <button class="back" data-go="home">&larr; Back</button>
-  <div class="profile-top"><div class="avatar" id="p-avatar"></div></div>
-  <div class="email-row"><div class="email" id="p-email"></div><div class="right"><div class="subs" id="p-subs"></div><button class="btn" id="open-settings">Settings</button></div></div>
+  <div class="profile-top" style="justify-content:space-between;align-items:center">
+    <div><strong id="p-name" style="font-size:1.2rem"></strong> <button class="btn" id="edit-btn">Edit profile</button></div>
+    <div class="avatar" id="p-avatar"></div>
+  </div>
+  <div class="email-row">
+    <div class="email" id="p-email"></div>
+    <div class="right"><div class="subs" id="p-subs"></div><button class="btn" id="open-settings">Settings</button><button class="btn" id="sub-btn">Subscribe</button></div>
+  </div>
   <div class="posts-row">
     <button id="posts-toggle" aria-expanded="false">Posts</button>
     <div class="m" id="p-created"></div>
   </div>
   <div id="posts-panel"></div>
-  <section class="history"><h2>History</h2><div id="hist"></div></section>
+  <section class="history" id="hist-sec"><h2>History</h2><div id="hist"></div></section>
+</main>
+
+<main id="edit" class="view">
+  <button class="back" data-go="profile">&larr; Back</button>
+  <h2>Edit profile</h2>
+  <div class="box">
+    <div class="avatar" id="e-avatar"></div>
+    <input type="file" id="e-file" accept="image/*" hidden>
+    <div class="row"><button class="btn" id="e-pick">Choose picture</button><button class="btn gray" id="e-rm">Remove picture</button></div>
+    <input id="e-name" placeholder="Your name" maxlength="40">
+    <button class="btn" id="e-save">Save</button>
+  </div>
 </main>
 
 <main id="settings" class="view">
@@ -112,84 +159,144 @@ canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:n
   <p class="m" id="cam-status"></p>
   <div class="row"><button class="btn" id="cam-toggle"></button></div>
   <p class="m">Your camera is only used when you film a video.</p>
+  <h3 style="margin-bottom:4px">Account</h3>
+  <div class="row"><button class="btn gray" id="logout">Log out</button></div>
 </main>
 
 <main id="film" class="view">
   <button class="back" data-go="home">&larr; Back</button>
   <h2>Film a video</h2>
   <video id="cam" muted playsinline autoplay></video>
-  <div class="row"><button class="btn" id="rec">Start filming</button><button class="btn" id="post" hidden>Post video</button></div>
+  <div class="row"><button class="btn" id="rec">Start filming</button></div>
+  <div class="row" id="postbox" hidden><input id="vtitle" placeholder="Video title" maxlength="80"><button class="btn" id="post">Post video</button></div>
   <div class="m" id="fmsg"></div>
 </main>
 
 <script>
-/* ===== EDIT YOUR INFO HERE ===== */
-const user={name:"Your Name",email:"you@example.com",subscribers:1280,created:"March 14, 2024"};
-const SRC="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"; // sample video
-const videos=[
- {id:1,title:"Sunrise hike",creator:"TrailTalk",views:"1.2K views",seed:"mountain",comments:[["Maya","Gorgeous view!"],["Leo","Which trail is this?"]]},
- {id:2,title:"Street food tour",creator:"NightBite",views:"845K views",seed:"streetfood",comments:[["Sam","Now I'm hungry."],["Ana","Great editing."]]},
- {id:3,title:"Skate park tricks",creator:"RampRiot",views:"96K views",seed:"skatepark",comments:[["Jo","That last trick!"]]},
- {id:4,title:"Cozy cooking",creator:"PanAndPine",views:"23K views",seed:"kitchen",comments:[["Priya","Making this tonight."]]},
- {id:5,title:"City timelapse",creator:"Lumen Lab",views:"410K views",seed:"skyline",comments:[["Ben","So smooth."],["Kai","What camera?"]]},
- {id:6,title:"Puppy training",creator:"Good Boy Club",views:"2.3M views",seed:"puppy",comments:[["Zoe","Best dog ever."]]}
-];
-let posts=["Thanks for 1,000 subscribers! New video coming this week.","Poll: what should I make next?"];
-/* =============================== */
 const $=i=>document.getElementById(i);
 const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
 const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
-posts=store("posts",posts);
-/* Saved videos live in IndexedDB so they survive reloads and tab switches */
+/* Videos live in IndexedDB; accounts live in localStorage */
 const db=new Promise((res,rej)=>{const r=indexedDB.open("vids",1);r.onupgradeneeded=()=>r.result.createObjectStore("v",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-const dbPut=async o=>{const d=await db;return new Promise((res,rej)=>{const t=d.transaction("v","readwrite");t.objectStore("v").put(o);t.oncomplete=res;t.onerror=()=>rej(t.error)})};
-const dbAll=async()=>{const d=await db;return new Promise((res,rej)=>{const r=d.transaction("v").objectStore("v").getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})};
-const saveMine=v=>{if(v.mine)dbPut({id:v.id,title:v.title,creator:v.creator,views:v.views,seed:v.seed,comments:v.comments,blob:v.blob}).catch(()=>{})};
-const photo=s=>`https://picsum.photos/seed/${s}/480/270`;
-const bg=s=>`background-image:url(${photo(s)}),linear-gradient(135deg,#334155,#64748b)`;
-let blobData=null,camOn=store("camOn",false),chips=store("chips",0),hist=store("hist",[]),cur=null,stream=null,mr=null,chunks=[],blobUrl=null,timer=null,gkey=null,tt;
+const dbTx=async(mode,fn)=>{const d=await db;return new Promise((res,rej)=>{const t=d.transaction("v",mode),r=fn(t.objectStore("v"));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})};
+const dbPut=o=>dbTx("readwrite",s=>s.put(o)),dbDel=id=>dbTx("readwrite",s=>s.delete(id)),dbAll=()=>dbTx("readonly",s=>s.getAll());
+let users=store("users",[]),me=null,videos=[],cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup";
+let camOn=store("camOn",false),timer=null,gkey=null,tt;
 
-function setChips(n){chips=n;put("chips",n);$("chipn").textContent=n}
-function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2600)}
+const saveUsers=()=>put("users",users);
+const uby=id=>users.find(u=>u.id==id);
+const uname=u=>u?u.name:"Unknown";
+const av=(u,s)=>`<span class="mav" style="width:${s}px;height:${s}px;${u&&u.pic?`background-image:url(${u.pic})`:""}">${u&&!u.pic?esc(u.name.charAt(0).toUpperCase()):""}</span>`;
+const setAv=(el,u)=>{el.style.backgroundImage=u.pic?`url(${u.pic})`:"";el.style.backgroundSize="cover";el.style.backgroundPosition="center";el.textContent=u.pic?"":u.name.charAt(0).toUpperCase()};
+const nviews=n=>n+(n==1?" view":" views");
+const rec=v=>({id:v.id,uid:v.uid,title:v.title,views:v.views,comments:v.comments,created:v.created,blob:v.blob});
+const save=v=>dbPut(rec(v)).catch(()=>toast("Could not save changes in this browser."));
+const hash=async(salt,pw)=>{const d=new TextEncoder().encode(salt+pw);
+  if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",d);return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+  let h=5381;for(const c of salt+pw)h=(h*33^c.charCodeAt(0))>>>0;return String(h)};
+
+function setChips(n){me.chips=n;saveUsers();$("chipn").textContent=n}
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2800)}
 function go(id){
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==id));
-  if(id!="watch"){$("player").pause();stopGame()}
+  if(id!="watch")$("player").pause();
+  if(id!="watch"&&id!="gamesview")stopGame();
+  if(id=="watch")$("slot-watch").appendChild($("games"));
+  if(id=="gamesview")$("slot-games").appendChild($("games"));
   if(id!="film"&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("pop").hidden=true;
-  if(id=="profile")renderProfile();
-  if(id=="settings")renderSettings();
+  if(me){if(id=="profile")renderProfile();if(id=="settings")renderSettings();if(id=="edit")renderEdit()}
   scrollTo(0,0);
 }
+
+/* ---------- Accounts ---------- */
+function setMode(m){mode=m;const s=m=="signup";$("a-name").hidden=!s;$("a-submit").textContent=s?"Create account":"Log in";
+  $("a-switch").textContent=s?"I already have an account":"Create a new account";$("a-pass").autocomplete=s?"new-password":"current-password";$("a-err").textContent=""}
+$("a-switch").onclick=()=>setMode(mode=="signup"?"login":"signup");
+$("auth").onsubmit=async e=>{
+  e.preventDefault();
+  const email=$("a-email").value.trim().toLowerCase(),pw=$("a-pass").value,name=$("a-name").value.trim(),err=$("a-err");
+  if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent="Enter a valid email address.";return}
+  if(pw.length<6){err.textContent="Password must be at least 6 characters.";return}
+  let u=users.find(x=>x.email==email);
+  if(mode=="signup"){
+    if(u){err.textContent="An account with that email already exists. Try logging in.";return}
+    const salt=[...crypto.getRandomValues(new Uint8Array(8))].join("");
+    u={id:"u"+Date.now(),email,name:name||email.split("@")[0],salt,hash:await hash(salt,pw),pic:"",created:Date.now(),chips:0,hist:[],subs:[]};
+    users.push(u);saveUsers();
+  }else if(!u||u.hash!=await hash(u.salt,pw)){err.textContent="Wrong email or password.";return}
+  $("a-pass").value="";signIn(u);
+};
+function signIn(u){me=u;put("sid",u.id);$("chips").hidden=false;setChips(u.chips||0);setAv($("open-profile"),u);renderHome();go("home")}
+function signOut(){me=null;put("sid",null);$("chips").hidden=true;setMode("login");go("auth-view")}
+$("logout").onclick=signOut;
+
+/* ---------- Pages ---------- */
 function renderHome(){
-  $("grid").innerHTML=videos.map(v=>`<div class="card" role="button" tabindex="0" data-id="${v.id}">
-   <div class="thumb" style="${bg(v.seed)}">&#9654;</div>
-   <div class="meta"><strong>${esc(v.title)}</strong><span>By ${esc(v.creator)}</span><span>${esc(v.views)}</span></div></div>`).join("");
-}
-function renderProfile(){
-  $("p-avatar").textContent=user.name.trim().charAt(0).toUpperCase();
-  $("p-email").textContent=user.email;
-  $("p-subs").textContent=user.subscribers.toLocaleString()+" subscribers";
-  $("p-created").textContent="Account created "+user.created;
-  $("posts-panel").innerHTML=posts.length?posts.map(p=>`<div>${esc(p)}</div>`).join(""):'<div class="m">You have no posts yet.</div>';
-  const h=hist.map(id=>videos.find(v=>v.id==id)).filter(Boolean);
-  $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb" style="${bg(v.seed)}">&#9654;</div><div><strong>${esc(v.title)}</strong><span>By ${esc(v.creator)}</span><span>${esc(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
-}
-function renderComments(){
-  $("c-head").textContent="Comments ("+cur.comments.length+")";
-  $("clist").innerHTML=cur.comments.length?cur.comments.map(([n,t])=>`<div class="cm"><b>${esc(n)}</b><div>${esc(t)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
+  const list=[...videos].sort((a,b)=>b.created-a.created);
+  $("grid").innerHTML=list.length?list.map(v=>`<div class="card" role="button" tabindex="0" data-id="${v.id}">
+    <div class="thumb"><video muted preload="metadata" src="${v.url}#t=0.2"></video><span>&#9654;</span></div>
+    <div class="meta"><strong>${esc(v.title)}</strong><span>${av(uby(v.uid),20)}${esc(uname(uby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):
+    '<p class="empty">No videos yet. Earn 3 chips in a mini game, enable your camera in Settings, then tap Film to post the first one.</p>';
 }
 function openVideo(id){
   cur=videos.find(v=>v.id==id);if(!cur)return;
-  const p=$("player");p.poster=photo(cur.seed);p.src=cur.src||SRC;p.play().catch(()=>{});
-  $("w-title").textContent=cur.title;$("w-meta").textContent="By "+cur.creator+" - "+cur.views;
-  hist=[cur.id,...hist.filter(x=>x!=cur.id)].slice(0,8);put("hist",hist);
+  const u=uby(cur.uid),p=$("player");p.src=cur.url;p.play().catch(()=>{});
+  cur.views++;save(cur);renderHome();
+  $("w-title").textContent=cur.title;
+  $("w-meta").innerHTML=`<button class="back" data-prof="${cur.uid}">${av(u,28)}${esc(uname(u))}</button> ${nviews(cur.views)}`;
+  me.hist=[cur.id,...(me.hist||[]).filter(x=>x!=cur.id)].slice(0,8);saveUsers();
   renderComments();go("watch");
 }
+function renderComments(){
+  $("c-head").textContent="Comments ("+cur.comments.length+")";
+  $("clist").innerHTML=cur.comments.length?cur.comments.map(c=>`<div class="cm">${av(uby(c.uid),24)}<b>${esc(uname(uby(c.uid)))}</b><div>${esc(c.text)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
+}
+$("cbtn").onclick=()=>{const t=$("cin").value.trim();if(!t)return;cur.comments.unshift({uid:me.id,text:t});$("cin").value="";save(cur);renderComments()};
+
+function showProfile(uid){pid=uid;go("profile")}
+function renderProfile(){
+  const u=uby(pid)||me,own=u.id==me.id;pid=u.id;
+  setAv($("p-avatar"),u);$("p-name").textContent=u.name;$("edit-btn").hidden=!own;
+  $("p-email").textContent=own?u.email:"";
+  $("p-subs").textContent=users.filter(x=>(x.subs||[]).includes(u.id)).length+" subscribers";
+  $("open-settings").hidden=!own;$("sub-btn").hidden=own;$("sub-btn").textContent=(me.subs||[]).includes(u.id)?"Subscribed":"Subscribe";
+  $("p-created").textContent="Account created "+new Date(u.created).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+  const mine=videos.filter(v=>v.uid==u.id).sort((a,b)=>b.created-a.created);
+  $("posts-panel").innerHTML=mine.length?mine.map(v=>`<div class="pv"><video controls preload="metadata" src="${v.url}"></video><strong>${esc(v.title)}</strong><div class="m">${nviews(v.views)}</div>${own?`<button class="btn del" data-del="${v.id}">Delete video</button>`:""}</div>`).join(""):'<div class="m">No videos posted yet.</div>';
+  $("hist-sec").hidden=!own;
+  const h=(me.hist||[]).map(id=>videos.find(v=>v.id==id)).filter(Boolean);
+  $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb"><video muted preload="metadata" src="${v.url}#t=0.2"></video></div><div><strong>${esc(v.title)}</strong><span>${esc(uname(uby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
+}
+$("sub-btn").onclick=()=>{me.subs=me.subs||[];const i=me.subs.indexOf(pid);i>-1?me.subs.splice(i,1):me.subs.push(pid);saveUsers();renderProfile()};
+$("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
+async function delVideo(id){
+  const v=videos.find(x=>x.id==id);
+  if(!v||v.uid!=me.id||!confirm("Delete this video? This cannot be undone."))return;
+  try{await dbDel(v.id)}catch(e){toast("Could not delete the video.");return}
+  URL.revokeObjectURL(v.url);videos=videos.filter(x=>x!==v);renderProfile();renderHome();toast("Video deleted");
+}
+
+/* ---------- Edit profile ---------- */
+function renderEdit(){ePic=me.pic||"";$("e-name").value=me.name;setAv($("e-avatar"),{name:me.name,pic:ePic})}
+$("e-pick").onclick=()=>$("e-file").click();
+$("e-file").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const img=new Image();
+  img.onload=()=>{const c=document.createElement("canvas");c.width=c.height=256;const s=Math.min(img.width,img.height);
+    c.getContext("2d").drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,256,256);
+    ePic=c.toDataURL("image/jpeg",.85);URL.revokeObjectURL(img.src);setAv($("e-avatar"),{name:me.name,pic:ePic})};
+  img.onerror=()=>toast("That file is not an image.");img.src=URL.createObjectURL(f);e.target.value="";
+};
+$("e-rm").onclick=()=>{ePic="";setAv($("e-avatar"),{name:me.name,pic:""})};
+$("e-save").onclick=()=>{
+  const n=$("e-name").value.trim();if(!n){toast("Enter a name.");return}
+  me.name=n;me.pic=ePic;saveUsers();setAv($("open-profile"),me);renderHome();toast("Profile saved");showProfile(me.id);
+};
 
 /* ---------- Mini games ---------- */
 const cv=$("cv"),g=cv.getContext("2d"),W=320;
-function earn(n,why){setChips(chips+n);toast("+"+n+" chip"+(n>1?"s":"")+": "+why)}
+function earn(n,why){setChips(me.chips+n);toast("+"+n+" chip"+(n>1?"s":"")+": "+why)}
 function stopGame(){clearInterval(timer);timer=null;if(gkey)document.removeEventListener("keydown",gkey);gkey=null;cv.onpointerdown=null;$("gbox").hidden=true}
 function startGame(k){stopGame();$("gbox").hidden=false;$("pad").hidden=k!="road";({road,zombie,build})[k]()}
 const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*W/r.height]};
@@ -243,6 +350,7 @@ function build(){
   },16);
 }
 
+
 /* ---------- Settings ---------- */
 function renderSettings(){
   $("cam-status").textContent=camOn?"Camera is on. You can film videos.":"Camera is off. Turn it on to film videos.";
@@ -262,46 +370,45 @@ $("cam-toggle").onclick=async()=>{
 $("film-btn").onclick=()=>$("pop").hidden=!$("pop").hidden;
 $("enter").onclick=async()=>{
   if(!camOn){toast("Enable your camera in Settings first.");return}
-  if(chips<3){toast("You need 3 chips. Earn them with the mini games under any video.");return}
-  setChips(chips-3);go("film");$("post").hidden=true;$("rec").textContent="Start filming";
+  if(me.chips<3){toast("You need 3 chips. Earn them with the mini games.");return}
+  setChips(me.chips-3);go("film");$("postbox").hidden=true;$("rec").textContent="Start filming";
   const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
     c.srcObject=stream;$("fmsg").textContent="Camera ready. 3 chips used.";
-  }catch(e){setChips(chips+3);go("home");toast("Camera not available. Your 3 chips were returned.")}
+  }catch(e){setChips(me.chips+3);go("home");toast("Camera not available. Your 3 chips were returned.")}
 };
 $("rec").onclick=()=>{
   if(!stream)return;
   if(mr&&mr.state=="recording"){mr.stop();return}
   const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");c.srcObject=stream;
   chunks=[];mr=new MediaRecorder(stream);mr.ondataavailable=e=>chunks.push(e.data);
-  mr.onstop=()=>{blobData=new Blob(chunks,{type:mr.mimeType});blobUrl=URL.createObjectURL(blobData);c.srcObject=null;c.src=blobUrl;c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("post").hidden=false};
-  mr.start();$("rec").textContent="Stop filming";$("post").hidden=true;
+  mr.onstop=()=>{blobData=new Blob(chunks,{type:mr.mimeType});c.srcObject=null;c.src=URL.createObjectURL(blobData);c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("postbox").hidden=false};
+  mr.start();$("rec").textContent="Stop filming";$("postbox").hidden=true;
 };
 $("post").onclick=async()=>{
   if(!blobData)return;
-  const n=videos.filter(v=>v.mine).length+1;
-  const v={id:Date.now(),title:"My video "+n,creator:"You",views:"0 views",seed:"myvideo"+n,src:blobUrl,mine:1,comments:[],blob:blobData};
-  videos.unshift(v);posts.unshift("Posted a video: "+v.title);put("posts",posts);
-  blobUrl=null;blobData=null;renderHome();go("home");
-  try{await dbPut({id:v.id,title:v.title,creator:v.creator,views:v.views,seed:v.seed,comments:v.comments,blob:v.blob});toast("Video posted and saved")}
-  catch(e){toast("Video posted, but your browser would not save it for later.")}
+  const n=videos.filter(v=>v.uid==me.id).length+1;
+  const v={id:Date.now(),uid:me.id,title:$("vtitle").value.trim()||"Video "+n,views:0,comments:[],created:Date.now(),blob:blobData};
+  v.url=URL.createObjectURL(blobData);videos.push(v);blobData=null;$("vtitle").value="";renderHome();go("home");
+  try{await dbPut(rec(v));toast("Video posted")}catch(e){toast("Posted, but your browser would not save it for later.")}
 };
 
-/* ---------- Wiring ---------- */
+/* ---------- Wiring and start ---------- */
 document.addEventListener("click",e=>{
-  const a=e.target.closest("[data-id]"),b=e.target.closest("[data-go]"),m=e.target.closest("[data-game]");
-  if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game);
+  const t=e.target,a=t.closest("[data-id]"),b=t.closest("[data-go]"),m=t.closest("[data-game]"),p=t.closest("[data-prof]"),d=t.closest("[data-del]");
+  if(d)delVideo(d.dataset.del);else if(p)showProfile(p.dataset.prof);else if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game);
 });
 document.addEventListener("keydown",e=>{const a=e.target.closest&&e.target.closest("[data-id]");if(a&&e.key=="Enter")openVideo(a.dataset.id)});
 $("gstop").onclick=stopGame;
-$("open-profile").onclick=()=>go("profile");
-$("open-profile").textContent=user.name.trim().charAt(0).toUpperCase();
-$("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
-$("cbtn").onclick=()=>{const t=$("cin").value.trim();if(!t)return;cur.comments.unshift(["You",t]);saveMine(cur);$("cin").value="";renderComments()};
-setChips(chips);renderHome();
-dbAll().then(rs=>{rs.sort((a,b)=>a.id-b.id).forEach(r=>videos.unshift({...r,src:URL.createObjectURL(r.blob),mine:1}));renderHome()}).catch(()=>{});
+$("open-profile").onclick=()=>showProfile(me.id);
+$("edit-btn").onclick=()=>go("edit");
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+(async()=>{
+  try{videos=(await dbAll()).map(r=>({...r,url:URL.createObjectURL(r.blob)}))}catch(e){}
+  const u=users.find(x=>x.id==store("sid",null));
+  if(u)signIn(u);else{setMode("signup");go("auth-view")}
+})();
 </script>
 </body>
 </html>
