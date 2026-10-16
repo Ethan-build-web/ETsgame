@@ -64,13 +64,13 @@ input{font:inherit}
 <main id="auth-view" class="view on">
   <h1>My Videos</h1>
   <p class="m">Create an account to watch, film and post videos.</p>
-  <form id="auth" class="box">
+  <div id="auth" class="box">
     <input id="a-name" placeholder="Your name" autocomplete="name" maxlength="40">
     <input id="a-email" type="email" placeholder="Email" autocomplete="email" required>
     <input id="a-pass" type="password" placeholder="Password (6+ characters)" required>
-    <button class="btn" id="a-submit">Create account</button>
+    <button class="btn" id="a-submit" type="button">Create account</button>
     <div class="m" id="a-err" role="alert"></div>
-  </form>
+  </div>
   <button class="back" id="a-switch" type="button">I already have an account</button>
   <p class="m">Accounts and videos are saved in this browser only.</p>
 </main>
@@ -214,8 +214,7 @@ function go(id){
 function setMode(m){mode=m;const s=m=="signup";$("a-name").hidden=!s;$("a-submit").textContent=s?"Create account":"Log in";
   $("a-switch").textContent=s?"I already have an account":"Create a new account";$("a-pass").autocomplete=s?"new-password":"current-password";$("a-err").textContent=""}
 $("a-switch").onclick=()=>setMode(mode=="signup"?"login":"signup");
-$("auth").onsubmit=async e=>{
-  e.preventDefault();
+const submitAuth=async()=>{
   const email=$("a-email").value.trim().toLowerCase(),pw=$("a-pass").value,name=$("a-name").value.trim(),err=$("a-err");
   if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent="Enter a valid email address.";return}
   if(pw.length<6){err.textContent="Password must be at least 6 characters.";return}
@@ -230,6 +229,8 @@ $("auth").onsubmit=async e=>{
 };
 function signIn(u){me=u;put("sid",u.id);$("chips").hidden=false;setChips(u.chips||0);setAv($("open-profile"),u);renderHome();go("home")}
 function signOut(){me=null;put("sid",null);$("chips").hidden=true;setMode("login");go("auth-view")}
+$("a-submit").onclick=()=>submitAuth().catch(e=>{$("a-err").textContent="Something went wrong: "+e.message});
+["a-name","a-email","a-pass"].forEach(i=>$(i).addEventListener("keydown",e=>{if(e.key=="Enter")$("a-submit").click()}));
 $("logout").onclick=signOut;
 
 /* ---------- Pages ---------- */
@@ -271,9 +272,11 @@ function renderProfile(){
 }
 $("sub-btn").onclick=()=>{me.subs=me.subs||[];const i=me.subs.indexOf(pid);i>-1?me.subs.splice(i,1):me.subs.push(pid);saveUsers();renderProfile()};
 $("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
-async function delVideo(id){
+async function delVideo(id,btn){
   const v=videos.find(x=>x.id==id);
-  if(!v||v.uid!=me.id||!confirm("Delete this video? This cannot be undone."))return;
+  if(!v||v.uid!=me.id)return;
+  if(!btn.dataset.armed){btn.dataset.armed=1;btn.textContent="Tap again to confirm delete";
+    setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent="Delete video"}},4000);return}
   try{await dbDel(v.id)}catch(e){toast("Could not delete the video.");return}
   URL.revokeObjectURL(v.url);videos=videos.filter(x=>x!==v);renderProfile();renderHome();toast("Video deleted");
 }
@@ -397,7 +400,7 @@ $("post").onclick=async()=>{
 /* ---------- Wiring and start ---------- */
 document.addEventListener("click",e=>{
   const t=e.target,a=t.closest("[data-id]"),b=t.closest("[data-go]"),m=t.closest("[data-game]"),p=t.closest("[data-prof]"),d=t.closest("[data-del]");
-  if(d)delVideo(d.dataset.del);else if(p)showProfile(p.dataset.prof);else if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game);
+  if(d)delVideo(d.dataset.del,d);else if(p)showProfile(p.dataset.prof);else if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game);
 });
 document.addEventListener("keydown",e=>{const a=e.target.closest&&e.target.closest("[data-id]");if(a&&e.key=="Enter")openVideo(a.dataset.id)});
 $("gstop").onclick=stopGame;
