@@ -134,15 +134,21 @@ const videos=[
  {id:5,title:"City timelapse",creator:"Lumen Lab",views:"410K views",seed:"skyline",comments:[["Ben","So smooth."],["Kai","What camera?"]]},
  {id:6,title:"Puppy training",creator:"Good Boy Club",views:"2.3M views",seed:"puppy",comments:[["Zoe","Best dog ever."]]}
 ];
-const posts=["Thanks for 1,000 subscribers! New video coming this week.","Poll: what should I make next?"];
+let posts=["Thanks for 1,000 subscribers! New video coming this week.","Poll: what should I make next?"];
 /* =============================== */
 const $=i=>document.getElementById(i);
 const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
 const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
+posts=store("posts",posts);
+/* Saved videos live in IndexedDB so they survive reloads and tab switches */
+const db=new Promise((res,rej)=>{const r=indexedDB.open("vids",1);r.onupgradeneeded=()=>r.result.createObjectStore("v",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const dbPut=async o=>{const d=await db;return new Promise((res,rej)=>{const t=d.transaction("v","readwrite");t.objectStore("v").put(o);t.oncomplete=res;t.onerror=()=>rej(t.error)})};
+const dbAll=async()=>{const d=await db;return new Promise((res,rej)=>{const r=d.transaction("v").objectStore("v").getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})};
+const saveMine=v=>{if(v.mine)dbPut({id:v.id,title:v.title,creator:v.creator,views:v.views,seed:v.seed,comments:v.comments,blob:v.blob}).catch(()=>{})};
 const photo=s=>`https://picsum.photos/seed/${s}/480/270`;
 const bg=s=>`background-image:url(${photo(s)}),linear-gradient(135deg,#334155,#64748b)`;
-let camOn=store("camOn",false),chips=store("chips",0),hist=store("hist",[]),cur=null,stream=null,mr=null,chunks=[],blobUrl=null,timer=null,gkey=null,tt;
+let blobData=null,camOn=store("camOn",false),chips=store("chips",0),hist=store("hist",[]),cur=null,stream=null,mr=null,chunks=[],blobUrl=null,timer=null,gkey=null,tt;
 
 function setChips(n){chips=n;put("chips",n);$("chipn").textContent=n}
 function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2600)}
@@ -269,13 +275,17 @@ $("rec").onclick=()=>{
   if(mr&&mr.state=="recording"){mr.stop();return}
   const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");c.srcObject=stream;
   chunks=[];mr=new MediaRecorder(stream);mr.ondataavailable=e=>chunks.push(e.data);
-  mr.onstop=()=>{blobUrl=URL.createObjectURL(new Blob(chunks,{type:mr.mimeType}));c.srcObject=null;c.src=blobUrl;c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("post").hidden=false};
+  mr.onstop=()=>{blobData=new Blob(chunks,{type:mr.mimeType});blobUrl=URL.createObjectURL(blobData);c.srcObject=null;c.src=blobUrl;c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("post").hidden=false};
   mr.start();$("rec").textContent="Stop filming";$("post").hidden=true;
 };
-$("post").onclick=()=>{
+$("post").onclick=async()=>{
+  if(!blobData)return;
   const n=videos.filter(v=>v.mine).length+1;
-  videos.unshift({id:Date.now(),title:"My video "+n,creator:"You",views:"0 views",seed:"myvideo"+n,src:blobUrl,mine:1,comments:[]});
-  posts.unshift("Posted a video: My video "+n);blobUrl=null;renderHome();toast("Video posted");go("home");
+  const v={id:Date.now(),title:"My video "+n,creator:"You",views:"0 views",seed:"myvideo"+n,src:blobUrl,mine:1,comments:[],blob:blobData};
+  videos.unshift(v);posts.unshift("Posted a video: "+v.title);put("posts",posts);
+  blobUrl=null;blobData=null;renderHome();go("home");
+  try{await dbPut({id:v.id,title:v.title,creator:v.creator,views:v.views,seed:v.seed,comments:v.comments,blob:v.blob});toast("Video posted and saved")}
+  catch(e){toast("Video posted, but your browser would not save it for later.")}
 };
 
 /* ---------- Wiring ---------- */
@@ -288,8 +298,10 @@ $("gstop").onclick=stopGame;
 $("open-profile").onclick=()=>go("profile");
 $("open-profile").textContent=user.name.trim().charAt(0).toUpperCase();
 $("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
-$("cbtn").onclick=()=>{const t=$("cin").value.trim();if(!t)return;cur.comments.unshift(["You",t]);$("cin").value="";renderComments()};
+$("cbtn").onclick=()=>{const t=$("cin").value.trim();if(!t)return;cur.comments.unshift(["You",t]);saveMine(cur);$("cin").value="";renderComments()};
 setChips(chips);renderHome();
+dbAll().then(rs=>{rs.sort((a,b)=>a.id-b.id).forEach(r=>videos.unshift({...r,src:URL.createObjectURL(r.blob),mine:1}));renderHome()}).catch(()=>{});
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 </script>
 </body>
 </html>
