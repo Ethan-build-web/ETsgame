@@ -72,7 +72,7 @@ input{font:inherit}
     <div class="m" id="a-err" role="alert"></div>
   </div>
   <button class="back" id="a-switch" type="button">I already have an account</button>
-  <p class="m">Accounts and videos are saved in this browser only.</p>
+  <p class="m">Your account and videos are shared with everyone who uses this site.</p>
 </main>
 
 <main id="home" class="view">
@@ -172,33 +172,54 @@ input{font:inherit}
   <div class="m" id="fmsg"></div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
+/* ===== PASTE YOUR SUPABASE DETAILS HERE (see SETUP.md) ===== */
+const SUPABASE_URL="PASTE_YOUR_PROJECT_URL";
+const SUPABASE_KEY="PASTE_YOUR_ANON_KEY";
+/* =========================================================== */
+const configured=!SUPABASE_URL.startsWith("PASTE")&&!SUPABASE_KEY.startsWith("PASTE");
+const sb=configured&&window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
 const $=i=>document.getElementById(i);
 const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
 const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
-/* Videos live in IndexedDB; accounts live in localStorage */
-const db=new Promise((res,rej)=>{const r=indexedDB.open("vids",1);r.onupgradeneeded=()=>r.result.createObjectStore("v",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-const dbTx=async(mode,fn)=>{const d=await db;return new Promise((res,rej)=>{const t=d.transaction("v",mode),r=fn(t.objectStore("v"));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})};
-const dbPut=o=>dbTx("readwrite",s=>s.put(o)),dbDel=id=>dbTx("readwrite",s=>s.delete(id)),dbAll=()=>dbTx("readonly",s=>s.getAll());
-let users=store("users",[]),me=null,videos=[],cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup";
+const fire=q=>q.then(r=>{if(r&&r.error)console.error(r.error)});
+let me=null,profiles=[],videos=[],subs=[],hist=[],cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup",busy=false;
 let camOn=store("camOn",false),timer=null,gkey=null,tt;
 
-const saveUsers=()=>put("users",users);
-const uby=id=>users.find(u=>u.id==id);
+const pby=id=>profiles.find(p=>p.id==id);
 const uname=u=>u?u.name:"Unknown";
 const av=(u,s)=>`<span class="mav" style="width:${s}px;height:${s}px;${u&&u.pic?`background-image:url(${u.pic})`:""}">${u&&!u.pic?esc(u.name.charAt(0).toUpperCase()):""}</span>`;
 const setAv=(el,u)=>{el.style.backgroundImage=u.pic?`url(${u.pic})`:"";el.style.backgroundSize="cover";el.style.backgroundPosition="center";el.textContent=u.pic?"":u.name.charAt(0).toUpperCase()};
 const nviews=n=>n+(n==1?" view":" views");
-const rec=v=>({id:v.id,uid:v.uid,title:v.title,views:v.views,comments:v.comments,created:v.created,blob:v.blob});
-const save=v=>dbPut(rec(v)).catch(()=>toast("Could not save changes in this browser."));
-const hash=async(salt,pw)=>{const d=new TextEncoder().encode(salt+pw);
-  if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",d);return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
-  let h=5381;for(const c of salt+pw)h=(h*33^c.charCodeAt(0))>>>0;return String(h)};
+const vurl=path=>sb.storage.from("videos").getPublicUrl(path).data.publicUrl;
 
-function setChips(n){me.chips=n;saveUsers();$("chipn").textContent=n}
-function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",2800)}
-function go(id){
+function setChips(n){me.chips=n;$("chipn").textContent=n;fire(sb.from("profiles").update({chips:n}).eq("id",me.id))}
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",3000)}
+
+/* ---------- Shared data (Supabase) ---------- */
+async function loadAll(){
+  const [p,v,s,h]=await Promise.all([
+    sb.from("profiles").select("*"),
+    sb.from("videos").select("*").order("created_at",{ascending:false}),
+    sb.from("subs").select("*"),
+    sb.from("history").select("video_id").eq("user_id",me.id).order("watched_at",{ascending:false}).limit(8)]);
+  const bad=p.error||v.error||s.error;
+  if(bad){toast("Could not load data: "+bad.message);return}
+  profiles=p.data;subs=s.data;hist=(h.data||[]).map(x=>x.video_id);
+  videos=v.data.map(x=>({id:x.id,uid:x.user_id,title:x.title,path:x.path,url:vurl(x.path),views:x.views,created:new Date(x.created_at).getTime()}));
+  const m=pby(me.id);if(m){m.email=me.email;me=m;$("chipn").textContent=me.chips;setAv($("open-profile"),me)}
+}
+async function refresh(){
+  if(busy||!me)return;busy=true;
+  try{await loadAll()}finally{busy=false}
+  const on=document.querySelector(".view.on");
+  if(on&&on.id=="home")renderHome();else if(on&&on.id=="profile")renderProfile();
+}
+setInterval(()=>{if(document.querySelector("#home.on"))refresh()},20000);
+
+function go(id,skip){
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==id));
   if(id!="watch")$("player").pause();
   if(id!="watch"&&id!="gamesview")stopGame();
@@ -206,7 +227,8 @@ function go(id){
   if(id=="gamesview")$("slot-games").appendChild($("games"));
   if(id!="film"&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("pop").hidden=true;
-  if(me){if(id=="profile")renderProfile();if(id=="settings")renderSettings();if(id=="edit")renderEdit()}
+  if(me){if(id=="profile")renderProfile();if(id=="settings")renderSettings();if(id=="edit")renderEdit();
+    if(!skip&&(id=="home"||id=="profile"))refresh()}
   scrollTo(0,0);
 }
 
@@ -214,71 +236,100 @@ function go(id){
 function setMode(m){mode=m;const s=m=="signup";$("a-name").hidden=!s;$("a-submit").textContent=s?"Create account":"Log in";
   $("a-switch").textContent=s?"I already have an account":"Create a new account";$("a-pass").autocomplete=s?"new-password":"current-password";$("a-err").textContent=""}
 $("a-switch").onclick=()=>setMode(mode=="signup"?"login":"signup");
+async function enter(user){
+  me={id:user.id,email:user.email};
+  await loadAll();
+  if(!pby(user.id)){
+    await sb.from("profiles").insert({id:user.id,name:(user.user_metadata&&user.user_metadata.name)||user.email.split("@")[0]});
+    await loadAll();
+  }
+  if(!pby(user.id)){$("a-err").textContent="Could not load your profile. Did you run setup.sql?";return}
+  $("chips").hidden=false;renderHome();go("home",true);
+}
 const submitAuth=async()=>{
-  const email=$("a-email").value.trim().toLowerCase(),pw=$("a-pass").value,name=$("a-name").value.trim(),err=$("a-err");
+  const err=$("a-err");
+  if(!sb){err.textContent=configured?"Could not load the database library. Check your internet connection.":"This site is not connected to a database yet. See SETUP.md.";return}
+  const email=$("a-email").value.trim().toLowerCase(),pw=$("a-pass").value,name=$("a-name").value.trim();
   if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent="Enter a valid email address.";return}
   if(pw.length<6){err.textContent="Password must be at least 6 characters.";return}
-  let u=users.find(x=>x.email==email);
+  err.textContent="Please wait...";
   if(mode=="signup"){
-    if(u){err.textContent="An account with that email already exists. Try logging in.";return}
-    const salt=[...crypto.getRandomValues(new Uint8Array(8))].join("");
-    u={id:"u"+Date.now(),email,name:name||email.split("@")[0],salt,hash:await hash(salt,pw),pic:"",created:Date.now(),chips:0,hist:[],subs:[]};
-    users.push(u);saveUsers();
-  }else if(!u||u.hash!=await hash(u.salt,pw)){err.textContent="Wrong email or password.";return}
-  $("a-pass").value="";signIn(u);
+    const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{name:name||email.split("@")[0]}}});
+    if(error){err.textContent=error.message;return}
+    if(!data.session){err.textContent="Account created. Check your email to confirm it, then log in.";return}
+    $("a-pass").value="";err.textContent="";await enter(data.user);
+  }else{
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+    if(error){err.textContent=error.message;return}
+    $("a-pass").value="";err.textContent="";await enter(data.user);
+  }
 };
-function signIn(u){me=u;put("sid",u.id);$("chips").hidden=false;setChips(u.chips||0);setAv($("open-profile"),u);renderHome();go("home")}
-function signOut(){me=null;put("sid",null);$("chips").hidden=true;setMode("login");go("auth-view")}
 $("a-submit").onclick=()=>submitAuth().catch(e=>{$("a-err").textContent="Something went wrong: "+e.message});
 ["a-name","a-email","a-pass"].forEach(i=>$(i).addEventListener("keydown",e=>{if(e.key=="Enter")$("a-submit").click()}));
+async function signOut(){await sb.auth.signOut();me=null;$("chips").hidden=true;setMode("login");go("auth-view")}
 $("logout").onclick=signOut;
 
 /* ---------- Pages ---------- */
 function renderHome(){
-  const list=[...videos].sort((a,b)=>b.created-a.created);
-  $("grid").innerHTML=list.length?list.map(v=>`<div class="card" role="button" tabindex="0" data-id="${v.id}">
+  $("grid").innerHTML=videos.length?videos.map(v=>`<div class="card" role="button" tabindex="0" data-id="${v.id}">
     <div class="thumb"><video muted preload="metadata" src="${v.url}#t=0.2"></video><span>&#9654;</span></div>
-    <div class="meta"><strong>${esc(v.title)}</strong><span>${av(uby(v.uid),20)}${esc(uname(uby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):
+    <div class="meta"><strong>${esc(v.title)}</strong><span>${av(pby(v.uid),20)}${esc(uname(pby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):
     '<p class="empty">No videos yet. Earn 3 chips in a mini game, enable your camera in Settings, then tap Film to post the first one.</p>';
 }
-function openVideo(id){
+async function openVideo(id){
   cur=videos.find(v=>v.id==id);if(!cur)return;
-  const u=uby(cur.uid),p=$("player");p.src=cur.url;p.play().catch(()=>{});
-  cur.views++;save(cur);renderHome();
+  const u=pby(cur.uid),p=$("player");p.src=cur.url;p.play().catch(()=>{});
+  cur.views++;fire(sb.rpc("increment_views",{vid:cur.id}));
+  hist=[cur.id,...hist.filter(x=>x!=cur.id)].slice(0,8);
+  fire(sb.from("history").upsert({user_id:me.id,video_id:cur.id,watched_at:new Date().toISOString()}));
   $("w-title").textContent=cur.title;
   $("w-meta").innerHTML=`<button class="back" data-prof="${cur.uid}">${av(u,28)}${esc(uname(u))}</button> ${nviews(cur.views)}`;
-  me.hist=[cur.id,...(me.hist||[]).filter(x=>x!=cur.id)].slice(0,8);saveUsers();
-  renderComments();go("watch");
+  cur.comments=[];renderComments();go("watch",true);
+  const c=await sb.from("comments").select("*").eq("video_id",id).order("created_at",{ascending:false});
+  if(c.data&&cur&&cur.id==id){cur.comments=c.data;renderComments()}
 }
 function renderComments(){
   $("c-head").textContent="Comments ("+cur.comments.length+")";
-  $("clist").innerHTML=cur.comments.length?cur.comments.map(c=>`<div class="cm">${av(uby(c.uid),24)}<b>${esc(uname(uby(c.uid)))}</b><div>${esc(c.text)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
+  $("clist").innerHTML=cur.comments.length?cur.comments.map(c=>`<div class="cm">${av(pby(c.user_id),24)}<b>${esc(uname(pby(c.user_id)))}</b><div>${esc(c.text)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
 }
-$("cbtn").onclick=()=>{const t=$("cin").value.trim();if(!t)return;cur.comments.unshift({uid:me.id,text:t});$("cin").value="";save(cur);renderComments()};
+$("cbtn").onclick=async()=>{
+  const t=$("cin").value.trim();if(!t)return;
+  const r=await sb.from("comments").insert({video_id:cur.id,user_id:me.id,text:t}).select().single();
+  if(r.error){toast("Could not post comment: "+r.error.message);return}
+  $("cin").value="";cur.comments.unshift(r.data);renderComments();
+};
 
 function showProfile(uid){pid=uid;go("profile")}
 function renderProfile(){
-  const u=uby(pid)||me,own=u.id==me.id;pid=u.id;
+  const u=pby(pid)||me,own=u.id==me.id;pid=u.id;
   setAv($("p-avatar"),u);$("p-name").textContent=u.name;$("edit-btn").hidden=!own;
-  $("p-email").textContent=own?u.email:"";
-  $("p-subs").textContent=users.filter(x=>(x.subs||[]).includes(u.id)).length+" subscribers";
-  $("open-settings").hidden=!own;$("sub-btn").hidden=own;$("sub-btn").textContent=(me.subs||[]).includes(u.id)?"Subscribed":"Subscribe";
-  $("p-created").textContent="Account created "+new Date(u.created).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
-  const mine=videos.filter(v=>v.uid==u.id).sort((a,b)=>b.created-a.created);
+  $("p-email").textContent=own?me.email:"";
+  $("p-subs").textContent=subs.filter(s=>s.creator==u.id).length+" subscribers";
+  $("open-settings").hidden=!own;$("sub-btn").hidden=own;
+  $("sub-btn").textContent=subs.some(s=>s.subscriber==me.id&&s.creator==u.id)?"Subscribed":"Subscribe";
+  $("p-created").textContent="Account created "+new Date(u.created_at).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+  const mine=videos.filter(v=>v.uid==u.id);
   $("posts-panel").innerHTML=mine.length?mine.map(v=>`<div class="pv"><video controls preload="metadata" src="${v.url}"></video><strong>${esc(v.title)}</strong><div class="m">${nviews(v.views)}</div>${own?`<button class="btn del" data-del="${v.id}">Delete video</button>`:""}</div>`).join(""):'<div class="m">No videos posted yet.</div>';
   $("hist-sec").hidden=!own;
-  const h=(me.hist||[]).map(id=>videos.find(v=>v.id==id)).filter(Boolean);
-  $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb"><video muted preload="metadata" src="${v.url}#t=0.2"></video></div><div><strong>${esc(v.title)}</strong><span>${esc(uname(uby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
+  const h=hist.map(id=>videos.find(v=>v.id==id)).filter(Boolean);
+  $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb"><video muted preload="metadata" src="${v.url}#t=0.2"></video></div><div><strong>${esc(v.title)}</strong><span>${esc(uname(pby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
 }
-$("sub-btn").onclick=()=>{me.subs=me.subs||[];const i=me.subs.indexOf(pid);i>-1?me.subs.splice(i,1):me.subs.push(pid);saveUsers();renderProfile()};
+$("sub-btn").onclick=async()=>{
+  const on=subs.some(s=>s.subscriber==me.id&&s.creator==pid);
+  const r=on?await sb.from("subs").delete().eq("subscriber",me.id).eq("creator",pid):await sb.from("subs").insert({subscriber:me.id,creator:pid});
+  if(r.error){toast(r.error.message);return}
+  subs=on?subs.filter(s=>!(s.subscriber==me.id&&s.creator==pid)):[...subs,{subscriber:me.id,creator:pid}];renderProfile();
+};
 $("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
 async function delVideo(id,btn){
   const v=videos.find(x=>x.id==id);
   if(!v||v.uid!=me.id)return;
   if(!btn.dataset.armed){btn.dataset.armed=1;btn.textContent="Tap again to confirm delete";
     setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent="Delete video"}},4000);return}
-  try{await dbDel(v.id)}catch(e){toast("Could not delete the video.");return}
-  URL.revokeObjectURL(v.url);videos=videos.filter(x=>x!==v);renderProfile();renderHome();toast("Video deleted");
+  const r=await sb.from("videos").delete().eq("id",v.id);
+  if(r.error){toast("Could not delete: "+r.error.message);return}
+  fire(sb.storage.from("videos").remove([v.path]));
+  videos=videos.filter(x=>x!==v);renderProfile();renderHome();toast("Video deleted");
 }
 
 /* ---------- Edit profile ---------- */
@@ -292,9 +343,11 @@ $("e-file").onchange=e=>{
   img.onerror=()=>toast("That file is not an image.");img.src=URL.createObjectURL(f);e.target.value="";
 };
 $("e-rm").onclick=()=>{ePic="";setAv($("e-avatar"),{name:me.name,pic:""})};
-$("e-save").onclick=()=>{
+$("e-save").onclick=async()=>{
   const n=$("e-name").value.trim();if(!n){toast("Enter a name.");return}
-  me.name=n;me.pic=ePic;saveUsers();setAv($("open-profile"),me);renderHome();toast("Profile saved");showProfile(me.id);
+  const r=await sb.from("profiles").update({name:n,pic:ePic}).eq("id",me.id);
+  if(r.error){toast("Could not save: "+r.error.message);return}
+  me.name=n;me.pic=ePic;setAv($("open-profile"),me);renderHome();toast("Profile saved");showProfile(me.id);
 };
 
 /* ---------- Mini games ---------- */
@@ -374,7 +427,7 @@ $("film-btn").onclick=()=>$("pop").hidden=!$("pop").hidden;
 $("enter").onclick=async()=>{
   if(!camOn){toast("Enable your camera in Settings first.");return}
   if(me.chips<3){toast("You need 3 chips. Earn them with the mini games.");return}
-  setChips(me.chips-3);go("film");$("postbox").hidden=true;$("rec").textContent="Start filming";
+  setChips(me.chips-3);go("film",true);$("postbox").hidden=true;$("rec").textContent="Start filming";
   const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
@@ -391,10 +444,15 @@ $("rec").onclick=()=>{
 };
 $("post").onclick=async()=>{
   if(!blobData)return;
-  const n=videos.filter(v=>v.uid==me.id).length+1;
-  const v={id:Date.now(),uid:me.id,title:$("vtitle").value.trim()||"Video "+n,views:0,comments:[],created:Date.now(),blob:blobData};
-  v.url=URL.createObjectURL(blobData);videos.push(v);blobData=null;$("vtitle").value="";renderHome();go("home");
-  try{await dbPut(rec(v));toast("Video posted")}catch(e){toast("Posted, but your browser would not save it for later.")}
+  const btn=$("post");btn.disabled=true;toast("Uploading video...");
+  const type=(blobData.type||"video/webm").split(";")[0],path=`${me.id}/${Date.now()}.${type.includes("mp4")?"mp4":"webm"}`;
+  const up=await sb.storage.from("videos").upload(path,blobData,{contentType:type});
+  if(up.error){btn.disabled=false;toast("Upload failed: "+up.error.message);return}
+  const title=$("vtitle").value.trim()||"Video "+(videos.filter(v=>v.uid==me.id).length+1);
+  const ins=await sb.from("videos").insert({user_id:me.id,title,path}).select().single();
+  btn.disabled=false;
+  if(ins.error){toast("Could not post: "+ins.error.message);return}
+  blobData=null;$("vtitle").value="";await loadAll();renderHome();go("home",true);toast("Video posted. Everyone can see it.");
 };
 
 /* ---------- Wiring and start ---------- */
@@ -406,11 +464,11 @@ document.addEventListener("keydown",e=>{const a=e.target.closest&&e.target.close
 $("gstop").onclick=stopGame;
 $("open-profile").onclick=()=>showProfile(me.id);
 $("edit-btn").onclick=()=>go("edit");
-if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 (async()=>{
-  try{videos=(await dbAll()).map(r=>({...r,url:URL.createObjectURL(r.blob)}))}catch(e){}
-  const u=users.find(x=>x.id==store("sid",null));
-  if(u)signIn(u);else{setMode("signup");go("auth-view")}
+  setMode("signup");
+  if(!sb){$("a-err").textContent=configured?"Could not load the database library. Check your internet connection.":"This site is not connected to a database yet. See SETUP.md.";return}
+  const {data}=await sb.auth.getSession();
+  if(data.session)await enter(data.session.user);
 })();
 </script>
 </body>
