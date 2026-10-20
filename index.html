@@ -529,6 +529,7 @@ $("gstop").onclick=stopGame;
 $("open-profile").onclick=()=>showProfile(me.id);
 $("edit-btn").onclick=()=>go("edit");
 (async()=>{
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
   setMode("signup");
   $("mode-note").textContent=configured?"Your account and videos are shared with everyone who uses this site.":"Local mode: accounts and videos are saved in this browser only. Connect Supabase (see SETUP.md) to share them with everyone.";
   if(!sb){$("a-err").textContent="Could not load the database library. Check your internet connection.";return}
