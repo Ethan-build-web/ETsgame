@@ -72,7 +72,7 @@ input{font:inherit}
     <div class="m" id="a-err" role="alert"></div>
   </div>
   <button class="back" id="a-switch" type="button">I already have an account</button>
-  <p class="m">Your account and videos are shared with everyone who uses this site.</p>
+  <p class="m" id="mode-note"></p>
 </main>
 
 <main id="home" class="view">
@@ -178,13 +178,77 @@ input{font:inherit}
 const SUPABASE_URL="PASTE_YOUR_PROJECT_URL";
 const SUPABASE_KEY="PASTE_YOUR_ANON_KEY";
 /* =========================================================== */
+/* ===== Local mode: used automatically until Supabase keys are pasted above.
+   It copies the Supabase client's methods but keeps everything in this browser. ===== */
+function localClient(){
+  const J=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+  const W=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  const T=J("l_db",{profiles:[],videos:[],comments:[],subs:[],history:[]}),users=J("l_users",[]),urls={};
+  let seq=J("l_seq",1);
+  const idb=new Promise((res,rej)=>{const r=indexedDB.open("lfiles",1);r.onupgradeneeded=()=>r.result.createObjectStore("f",{keyPath:"path"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+  const tx=async(m,fn)=>{const d=await idb;return new Promise((res,rej)=>{const t=d.transaction("f",m),r=fn(t.objectStore("f"));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})};
+  const ready=tx("readonly",s=>s.getAll()).then(fs=>fs.forEach(f=>urls[f.path]=URL.createObjectURL(f.blob))).catch(()=>{});
+  const hash=async(salt,pw)=>{const d=new TextEncoder().encode(salt+pw);
+    if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",d);return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+    let h=5381;for(const c of salt+pw)h=(h*33^c.charCodeAt(0))>>>0;return String(h)};
+  const saveDb=()=>{W("l_db",T);W("l_seq",seq)};
+  const sess=()=>{const u=users.find(x=>x.id==J("l_sid",null));return u?{user:{id:u.id,email:u.email,user_metadata:{name:u.name}}}:null};
+  const from=t=>{
+    const o={op:"select",f:[],ord:null,lim:null,one:false,row:null};
+    const m=x=>o.f.every(([k,v])=>x[k]==v);
+    const run=()=>{
+      const rows=T[t];
+      if(o.op=="insert"){const x={id:seq++,views:0,chips:0,pic:"",created_at:new Date().toISOString(),...o.row};rows.push(x);saveDb();return{data:o.one?{...x}:[x],error:null}}
+      if(o.op=="upsert"){const i=rows.findIndex(x=>x.user_id==o.row.user_id&&x.video_id==o.row.video_id);if(i>-1)Object.assign(rows[i],o.row);else rows.push({...o.row});saveDb();return{data:null,error:null}}
+      if(o.op=="update"){rows.filter(m).forEach(x=>Object.assign(x,o.row));saveDb();return{data:null,error:null}}
+      if(o.op=="delete"){const gone=rows.filter(m).map(x=>x.id);T[t]=rows.filter(x=>!m(x));
+        if(t=="videos"){T.comments=T.comments.filter(c=>!gone.includes(c.video_id));T.history=T.history.filter(h=>!gone.includes(h.video_id))}
+        saveDb();return{data:null,error:null}}
+      let r=rows.filter(m);
+      if(o.ord)r=[...r].sort((a,b)=>(a[o.ord[0]]>b[o.ord[0]]?1:-1)*o.ord[1]);
+      if(o.lim)r=r.slice(0,o.lim);
+      return{data:o.one?{...r[0]}:r.map(x=>({...x})),error:null};
+    };
+    const b={select(){return b},insert(r){o.op="insert";o.row=r;return b},update(r){o.op="update";o.row=r;return b},delete(){o.op="delete";return b},upsert(r){o.op="upsert";o.row=r;return b},
+      eq(k,v){o.f.push([k,v]);return b},order(k,a){o.ord=[k,a&&a.ascending===false?-1:1];return b},limit(n){o.lim=n;return b},single(){o.one=true;return b},
+      then(res,rej){return Promise.resolve().then(run).then(res,rej)}};
+    return b;
+  };
+  return{ready,from,
+    rpc:(n,a)=>Promise.resolve().then(()=>{const v=T.videos.find(x=>x.id==a.vid);if(v){v.views++;saveDb()}return{error:null}}),
+    auth:{
+      async signUp({email,password,options}){
+        if(users.some(x=>x.email==email))return{data:{},error:{message:"An account with that email already exists. Try logging in."}};
+        const salt=[...crypto.getRandomValues(new Uint8Array(8))].join(""),id="u"+Date.now()+Math.random().toString(36).slice(2,6);
+        const name=(options&&options.data&&options.data.name)||email.split("@")[0];
+        users.push({id,email,name,salt,hash:await hash(salt,password)});W("l_users",users);
+        T.profiles.push({id,name,pic:"",chips:0,created_at:new Date().toISOString()});saveDb();W("l_sid",id);
+        const s=sess();return{data:{user:s.user,session:s},error:null};
+      },
+      async signInWithPassword({email,password}){
+        const u=users.find(x=>x.email==email);
+        if(!u||u.hash!=await hash(u.salt,password))return{data:{},error:{message:"Wrong email or password."}};
+        W("l_sid",u.id);const s=sess();return{data:{user:s.user,session:s},error:null};
+      },
+      async getSession(){return{data:{session:sess()}}},
+      async signOut(){W("l_sid",null);return{error:null}}
+    },
+    storage:{from:()=>({
+      async upload(p,b){try{await tx("readwrite",s=>s.put({path:p,blob:b}))}catch(e){return{error:{message:"Your browser would not save the video."}}}urls[p]=URL.createObjectURL(b);return{error:null}},
+      getPublicUrl:p=>({data:{publicUrl:urls[p]||""}}),
+      async remove(ps){for(const p of ps){if(urls[p])URL.revokeObjectURL(urls[p]);delete urls[p];try{await tx("readwrite",s=>s.delete(p))}catch(e){}}return{error:null}}
+    })}
+  };
+}
+
 const configured=!SUPABASE_URL.startsWith("PASTE")&&!SUPABASE_KEY.startsWith("PASTE");
-const sb=configured&&window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+let sb=null;
 const $=i=>document.getElementById(i);
 const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
 const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
 const fire=q=>q.then(r=>{if(r&&r.error)console.error(r.error)});
+sb=configured?(window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null):localClient();
 let me=null,profiles=[],videos=[],subs=[],hist=[],cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup",busy=false;
 let camOn=store("camOn",false),timer=null,gkey=null,tt;
 
@@ -248,7 +312,7 @@ async function enter(user){
 }
 const submitAuth=async()=>{
   const err=$("a-err");
-  if(!sb){err.textContent=configured?"Could not load the database library. Check your internet connection.":"This site is not connected to a database yet. See SETUP.md.";return}
+  if(!sb){err.textContent="Could not load the database library. Check your internet connection.";return}
   const email=$("a-email").value.trim().toLowerCase(),pw=$("a-pass").value,name=$("a-name").value.trim();
   if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent="Enter a valid email address.";return}
   if(pw.length<6){err.textContent="Password must be at least 6 characters.";return}
@@ -466,7 +530,9 @@ $("open-profile").onclick=()=>showProfile(me.id);
 $("edit-btn").onclick=()=>go("edit");
 (async()=>{
   setMode("signup");
-  if(!sb){$("a-err").textContent=configured?"Could not load the database library. Check your internet connection.":"This site is not connected to a database yet. See SETUP.md.";return}
+  $("mode-note").textContent=configured?"Your account and videos are shared with everyone who uses this site.":"Local mode: accounts and videos are saved in this browser only. Connect Supabase (see SETUP.md) to share them with everyone.";
+  if(!sb){$("a-err").textContent="Could not load the database library. Check your internet connection.";return}
+  if(sb.ready)await sb.ready;
   const {data}=await sb.auth.getSession();
   if(data.session)await enter(data.session.user);
 })();
