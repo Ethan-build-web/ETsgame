@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Videos</title>
+<style>
+:root{--bg:#f6f7f9;--s:#fff;--t:#14181f;--m:#5f6b7a;--l:#dfe3e8;--a:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#12151a;--s:#1b1f26;--t:#eef1f5;--m:#9aa5b4;--l:#2b313b;--a:#6ea0ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.5 "Segoe UI",system-ui,Roboto,Arial,sans-serif}
+button,input{font:inherit}button{cursor:pointer}
+.m{color:var(--m);font-size:.9rem}
+.view{display:none;min-height:100vh;padding:60px 20px 120px;max-width:900px;margin:auto}
+.view.on{display:block}
+#chips{position:fixed;top:12px;right:16px;z-index:20;background:var(--s);border:1px solid var(--l);border-radius:20px;padding:4px 14px;font-weight:600}
+#chips i{display:inline-block;width:12px;height:12px;border-radius:50%;background:#f59e0b;border:2px solid #b45309;margin-right:6px}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#14181f;color:#fff;padding:10px 16px;border-radius:8px;z-index:30;display:none;max-width:90%;text-align:center}
+.btn{background:var(--a);color:#fff;border:0;border-radius:8px;padding:8px 14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.row input{flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--l);border-radius:8px;background:var(--s);color:var(--t)}
+.back{background:none;border:0;color:var(--a);padding:4px 0}
+h1{margin:0 0 4px;font-size:1.75rem}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.card{background:var(--s);border:1px solid var(--l);border-radius:10px;overflow:hidden;cursor:pointer}
+.thumb{aspect-ratio:16/9;background-size:cover;background-position:center;display:grid;place-items:center;color:#fff;font-size:2rem;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.meta{padding:10px 12px 12px}.meta strong,.meta span{display:block}.meta span{color:var(--m);font-size:.85rem}
+.profile-btn{position:fixed;right:20px;bottom:20px;width:60px;height:60px;border-radius:50%;border:3px solid var(--s);background:var(--a);color:#fff;font-size:1.5rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25);overflow:hidden;padding:0}
+#film-btn{position:fixed;left:20px;bottom:20px;height:60px;padding:0 22px;border-radius:30px;border:0;background:#e11d48;color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#pop{position:fixed;left:20px;bottom:92px;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:12px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#pop[hidden],[hidden]{display:none!important}
+button:focus-visible,.card:focus-visible{outline:3px solid var(--a);outline-offset:3px}
+video{width:100%;max-height:60vh;background:#000;border-radius:10px;display:block}
+canvas{width:100%;max-width:320px;border-radius:8px;display:block;touch-action:none;background:#222}
+#pad{display:flex;gap:8px;margin:8px 0}#pad button{width:52px;height:44px;border-radius:8px;border:1px solid var(--l);background:var(--s);color:var(--t)}
+.cm{padding:8px 0;border-bottom:1px solid var(--l)}
+.profile-top{display:flex;justify-content:flex-end;margin-top:8px}
+.avatar{width:88px;height:88px;border-radius:50%;background:var(--a);color:#fff;display:grid;place-items:center;font-size:2.2rem;font-weight:600}
+.email-row,.posts-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+.email-row{margin-top:12px}.email{font-weight:600;word-break:break-all}.right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.subs{color:var(--m);white-space:nowrap}
+.posts-row{margin-top:48px}
+#posts-toggle{background:none;border:0;padding:0;font-size:1.15rem;font-weight:600;color:var(--t);text-decoration:underline;text-underline-offset:4px}
+#posts-panel{display:none;margin-top:12px;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:4px 16px}
+#posts-panel.open{display:block}#posts-panel div{padding:10px 0;border-bottom:1px solid var(--l)}#posts-panel div:last-child{border:0}
+.history{margin-top:96px}.history h2{margin:0 0 12px;font-size:1.25rem}
+.hist{display:flex;gap:12px;align-items:center;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:10px;margin-bottom:12px;cursor:pointer}
+.hist .thumb{width:120px;flex-shrink:0;border-radius:6px;font-size:1rem}
+.hist strong,.hist span{display:block}.hist span{color:var(--m);font-size:.85rem}
+
+input{font:inherit}
+.box{display:grid;gap:10px;max-width:360px}
+.box input{padding:10px 12px;border:1px solid var(--l);border-radius:8px;background:var(--s);color:var(--t)}
+.mav{display:inline-grid;place-items:center;border-radius:50%;background:var(--a) center/cover;color:#fff;font-size:.8rem;font-weight:600;vertical-align:middle;margin-right:6px}
+.thumb>*{grid-area:1/1}.thumb video{width:100%;height:100%;max-height:none;object-fit:cover;border-radius:0}
+.pv strong{display:block}#posts-panel .pv div{padding:0;border:0}
+.del{background:#b91c1c;margin-top:6px}.gray{background:var(--m)}
+.empty{text-align:center;color:var(--m);padding:40px 0}
+
+body.hb{background:linear-gradient(120deg,#0f172a,#312e81,#6d28d9,#be185d,#0f172a);background-size:300% 300%;background-attachment:fixed;animation:hbg 22s ease infinite}
+@keyframes hbg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+body.hb::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.55;background-size:200px 200px;
+ background-image:radial-gradient(1.5px 1.5px at 20px 30px,#fff,transparent),radial-gradient(1px 1px at 90px 140px,#fff,transparent),radial-gradient(2px 2px at 160px 70px,#fff,transparent),radial-gradient(1px 1px at 130px 20px,#fff,transparent)}
+@media(prefers-reduced-motion:reduce){body.hb{animation:none}}
+.view{position:relative;z-index:1}
+#home h1,#home>p,#home .empty{color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.4)}
+.tab{background:rgba(255,255,255,.18);color:#fff}.tab.act{background:#fff;color:#1e3a8a;font-weight:600}
+.glist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:10px 0}
+.g{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.diff{font-size:.8rem;font-weight:600;padding:1px 10px;border-radius:10px}
+.diff.easy{background:#dcfce7;color:#166534}.diff.medium{background:#fef3c7;color:#92400e}.diff.hard{background:#fee2e2;color:#991b1b}
+#gbox.full{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px;overflow:auto}
+#gbox.full canvas{max-width:none;width:min(94vw,calc(100vh - 200px));height:auto}
+.subs{background:none;border:0;padding:0;color:var(--m);white-space:nowrap;text-decoration:underline;text-underline-offset:3px}
+#subs-panel{display:none;margin-top:10px;background:var(--s);border:1px solid var(--l);border-radius:10px;padding:6px 14px}
+#subs-panel.open{display:block}
+.meta .mav{display:inline-grid;margin-right:6px}
+.sub-i{padding:8px 0;border-bottom:1px solid var(--l);cursor:pointer}.sub-i:last-child{border:0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;padding:0 12px 12px}
+.mini{background:var(--s);color:var(--t);border:1px solid var(--l);border-radius:16px;padding:3px 12px;font-size:.85rem}
+.mini[aria-pressed=true]{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+#posts-panel .pv .acts{padding:6px 0 0}
+.g .mini{margin-top:2px}
+.thumb{background-color:#334155}
+</style>
+</head>
+<body>
+<div id="chips" hidden><i></i>Chips: <b id="chipn">0</b></div>
+<div id="toast" role="status"></div>
+
+<main id="auth-view" class="view on">
+  <h1>My Videos</h1>
+  <p class="m">Create an account to watch, film and post videos.</p>
+  <div id="auth" class="box">
+    <input id="a-name" placeholder="Your name" autocomplete="name" maxlength="40">
+    <input id="a-email" type="email" placeholder="Email" autocomplete="email" required>
+    <input id="a-pass" type="password" placeholder="Password (6+ characters)" required>
+    <button class="btn" id="a-submit" type="button">Create account</button>
+    <div class="m" id="a-err" role="alert"></div>
+  </div>
+  <button class="back" id="a-switch" type="button">I already have an account</button>
+  <p class="m" id="mode-note"></p>
+</main>
+
+<main id="home" class="view">
+  <h1>Videos</h1>
+  <p class="m">Videos posted by everyone with an account on this browser.</p>
+  <div class="row"><button class="btn" data-go="gamesview">Play mini games</button></div>
+  <div class="row"><button class="btn tab act" data-feed="all">All videos</button><button class="btn tab" data-feed="subs">Subscriptions</button></div>
+  <div class="grid" id="grid"></div>
+  <button id="film-btn" aria-label="Film a video">&#127916; Film</button>
+  <div id="pop" hidden><button class="btn" id="enter">Enter chips (3)</button></div>
+  <button class="profile-btn" id="open-profile" aria-label="Open your profile"></button>
+</main>
+
+<main id="watch" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <video id="player" controls playsinline preload="auto"></video>
+  <h2 id="w-title" style="margin:12px 0 0"></h2>
+  <div id="w-meta" class="m"></div>
+  <div class="row"><button class="btn" id="like-btn">Like (0)</button><button class="btn gray" id="wsub-btn">Subscribe</button></div>
+  <div id="slot-watch">
+    <section id="games">
+      <h3>Mini games</h3>
+      <p class="m">Earn chips here. You need 3 chips to post a video.</p>
+      <div class="glist">
+        <div class="g"><button class="btn" data-game="road">Cross the road</button><span class="diff easy">Easy</span><button class="mini" data-game="road" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="catchg">Catch the chips</button><span class="diff easy">Easy</span><button class="mini" data-game="catchg" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="memory">Memory match</button><span class="diff easy">Easy</span><button class="mini" data-game="memory" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="zombie">Zombie fight</button><span class="diff medium">Medium</span><button class="mini" data-game="zombie" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="snake">Snake</button><span class="diff medium">Medium</span><button class="mini" data-game="snake" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="build">Chip tower</button><span class="diff hard">Hard</span><button class="mini" data-game="build" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="flap">Flappy hop</button><span class="diff hard">Hard</span><button class="mini" data-game="flap" data-full="1">Enlarge</button></div>
+        <div class="g"><button class="btn" data-game="dodge">Asteroid dodge</button><span class="diff hard">Hard</span><button class="mini" data-game="dodge" data-full="1">Enlarge</button></div>
+      </div>
+      <div id="gbox" hidden>
+        <canvas id="cv" width="320" height="320"></canvas>
+        <div id="pad">
+          <button data-d="0,-1" aria-label="Up">&#9650;</button><button data-d="-1,0" aria-label="Left">&#9664;</button>
+          <button data-d="1,0" aria-label="Right">&#9654;</button><button data-d="0,1" aria-label="Down">&#9660;</button>
+        </div>
+        <div class="m" id="ginfo"></div>
+        <div class="row"><button class="btn" id="gfull">Enlarge</button><button class="btn gray" id="gstop">Close game</button></div>
+      </div>
+    </section>
+  </div>
+  <section>
+    <h3 id="c-head">Comments</h3>
+    <div class="row"><input id="cin" placeholder="Add a comment"><button class="btn" id="cbtn">Post comment</button></div>
+    <div id="clist"></div>
+  </section>
+</main>
+
+<main id="gamesview" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <div id="slot-games"></div>
+</main>
+
+<main id="profile" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <div class="profile-top" style="justify-content:space-between;align-items:center">
+    <div><strong id="p-name" style="font-size:1.2rem"></strong> <button class="btn" id="edit-btn">Edit profile</button></div>
+    <div class="avatar" id="p-avatar"></div>
+  </div>
+  <div class="email-row">
+    <div class="email" id="p-email"></div>
+    <div class="right"><button class="subs" id="p-subs" type="button">0 subscribers</button><button class="btn" id="open-settings">Settings</button><button class="btn" id="sub-btn">Subscribe</button></div>
+  </div>
+  <div id="subs-panel"></div>
+  <div class="posts-row">
+    <button id="posts-toggle" aria-expanded="false">Posts</button>
+    <div class="m" id="p-created"></div>
+  </div>
+  <div id="posts-panel"></div>
+  <section class="history" id="hist-sec"><h2>History</h2><div id="hist"></div></section>
+</main>
+
+<main id="edit" class="view">
+  <button class="back" data-go="profile">&larr; Back</button>
+  <h2>Edit profile</h2>
+  <div class="box">
+    <div class="avatar" id="e-avatar"></div>
+    <input type="file" id="e-file" accept="image/*" hidden>
+    <div class="row"><button class="btn" id="e-pick">Choose picture</button><button class="btn gray" id="e-rm">Remove picture</button></div>
+    <input id="e-name" placeholder="Your name" maxlength="40">
+    <button class="btn" id="e-save">Save</button>
+  </div>
+</main>
+
+<main id="settings" class="view">
+  <button class="back" data-go="profile">&larr; Back</button>
+  <h2>Settings</h2>
+  <h3 style="margin-bottom:4px">Camera</h3>
+  <p class="m" id="cam-status"></p>
+  <div class="row"><button class="btn" id="cam-toggle"></button></div>
+  <p class="m">Your camera is only used when you film a video.</p>
+  <h3 style="margin-bottom:4px">Account</h3>
+  <div class="row"><button class="btn gray" id="logout">Log out</button></div>
+</main>
+
+<main id="film" class="view">
+  <button class="back" data-go="home">&larr; Back</button>
+  <h2>Film a video</h2>
+  <video id="cam" muted playsinline autoplay></video>
+  <div class="row"><button class="btn" id="rec">Start filming</button></div>
+  <div class="row" id="postbox" hidden><input id="vtitle" placeholder="Video title" maxlength="80"><button class="btn" id="post">Post video</button></div>
+  <div class="m" id="fmsg"></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ===== Local mode: used automatically until Supabase keys are pasted above.
+   It copies the Supabase client's methods but keeps everything in this browser. ===== */
+function localClient(){
+  const J=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+  const W=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  const T=J("l_db",{profiles:[],videos:[],comments:[],subs:[],history:[],likes:[]}),users=J("l_users",[]),urls={};
+  let seq=J("l_seq",1);T.likes=T.likes||[];
+  const idb=new Promise((res,rej)=>{const r=indexedDB.open("lfiles",1);r.onupgradeneeded=()=>r.result.createObjectStore("f",{keyPath:"path"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+  const tx=async(m,fn)=>{const d=await idb;return new Promise((res,rej)=>{const t=d.transaction("f",m),r=fn(t.objectStore("f"));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})};
+  /* copy saved videos into memory so replays play smoothly instead of streaming from disk */
+  const ready=tx("readonly",s=>s.getAll()).then(fs=>Promise.all(fs.map(async f=>{const buf=await f.blob.arrayBuffer();urls[f.path]=URL.createObjectURL(new Blob([buf],{type:f.blob.type}))}))).catch(()=>{});
+  const hash=async(salt,pw)=>{const d=new TextEncoder().encode(salt+pw);
+    if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",d);return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+    let h=5381;for(const c of salt+pw)h=(h*33^c.charCodeAt(0))>>>0;return String(h)};
+  const saveDb=()=>{W("l_db",T);W("l_seq",seq)};
+  const sess=()=>{const u=users.find(x=>x.id==J("l_sid",null));return u?{user:{id:u.id,email:u.email,user_metadata:{name:u.name}}}:null};
+  const from=t=>{
+    const o={op:"select",f:[],ord:null,lim:null,one:false,row:null};
+    const m=x=>o.f.every(([k,v])=>x[k]==v);
+    const run=()=>{
+      const rows=T[t];
+      if(o.op=="insert"){const x={id:seq++,views:0,chips:0,pic:"",created_at:new Date().toISOString(),...o.row};rows.push(x);saveDb();return{data:o.one?{...x}:[x],error:null}}
+      if(o.op=="upsert"){const i=rows.findIndex(x=>x.user_id==o.row.user_id&&x.video_id==o.row.video_id);if(i>-1)Object.assign(rows[i],o.row);else rows.push({...o.row});saveDb();return{data:null,error:null}}
+      if(o.op=="update"){rows.filter(m).forEach(x=>Object.assign(x,o.row));saveDb();return{data:null,error:null}}
+      if(o.op=="delete"){const gone=rows.filter(m).map(x=>x.id);T[t]=rows.filter(x=>!m(x));
+        if(t=="videos"){T.comments=T.comments.filter(c=>!gone.includes(c.video_id));T.history=T.history.filter(h=>!gone.includes(h.video_id));T.likes=T.likes.filter(l=>!gone.includes(l.video_id))}
+        saveDb();return{data:null,error:null}}
+      let r=rows.filter(m);
+      if(o.ord)r=[...r].sort((a,b)=>(a[o.ord[0]]>b[o.ord[0]]?1:-1)*o.ord[1]);
+      if(o.lim)r=r.slice(0,o.lim);
+      return{data:o.one?{...r[0]}:r.map(x=>({...x})),error:null};
+    };
+    const b={select(){return b},insert(r){o.op="insert";o.row=r;return b},update(r){o.op="update";o.row=r;return b},delete(){o.op="delete";return b},upsert(r){o.op="upsert";o.row=r;return b},
+      eq(k,v){o.f.push([k,v]);return b},order(k,a){o.ord=[k,a&&a.ascending===false?-1:1];return b},limit(n){o.lim=n;return b},single(){o.one=true;return b},
+      then(res,rej){return Promise.resolve().then(run).then(res,rej)}};
+    return b;
+  };
+  return{ready,from,
+    rpc:(n,a)=>Promise.resolve().then(()=>{const v=T.videos.find(x=>x.id==a.vid);if(v){v.views++;saveDb()}return{error:null}}),
+    auth:{
+      async signUp({email,password,options}){
+        if(users.some(x=>x.email==email))return{data:{},error:{message:"An account with that email already exists. Try logging in."}};
+        const salt=[...crypto.getRandomValues(new Uint8Array(8))].join(""),id="u"+Date.now()+Math.random().toString(36).slice(2,6);
+        const name=(options&&options.data&&options.data.name)||email.split("@")[0];
+        users.push({id,email,name,salt,hash:await hash(salt,password)});W("l_users",users);
+        T.profiles.push({id,name,pic:"",chips:0,created_at:new Date().toISOString()});saveDb();W("l_sid",id);
+        const s=sess();return{data:{user:s.user,session:s},error:null};
+      },
+      async signInWithPassword({email,password}){
+        const u=users.find(x=>x.email==email);
+        if(!u||u.hash!=await hash(u.salt,password))return{data:{},error:{message:"Wrong email or password."}};
+        W("l_sid",u.id);const s=sess();return{data:{user:s.user,session:s},error:null};
+      },
+      async getSession(){return{data:{session:sess()}}},
+      async signOut(){W("l_sid",null);return{error:null}}
+    },
+    storage:{from:()=>({
+      async upload(p,b){try{await tx("readwrite",s=>s.put({path:p,blob:b}))}catch(e){return{error:{message:"Your browser would not save the video."}}}urls[p]=URL.createObjectURL(b);return{error:null}},
+      getPublicUrl:p=>({data:{publicUrl:urls[p]||""}}),
+      async remove(ps){for(const p of ps){if(urls[p])URL.revokeObjectURL(urls[p]);delete urls[p];try{await tx("readwrite",s=>s.delete(p))}catch(e){}}return{error:null}}
+    })}
+  };
+}
+
+/* ===== Firebase mode: accounts via Firebase Auth, data in Realtime Database.
+   Videos are stored in the database as small text chunks (no paid Storage plan needed). ===== */
+function firebaseClient(cfg){
+  firebase.initializeApp(cfg);
+  const auth=firebase.auth(),db=firebase.database();
+  const P={profiles:r=>"profiles/"+r.id,videos:r=>"videos/"+r.id,comments:r=>"comments/"+r.id,subs:r=>"subs/"+r.subscriber+"_"+r.creator,likes:r=>"likes/"+r.user_id+"_"+r.video_id,history:r=>"history/"+r.user_id+"/"+r.video_id};
+  const KEYS={profiles:["id"],videos:["id"],comments:["id"],subs:["subscriber","creator"],likes:["user_id","video_id"],history:["user_id","video_id"]};
+  const newId=()=>Date.now()*1000+Math.floor(Math.random()*1000);
+  const K=p=>p.replace(/[^A-Za-z0-9]/g,"_");
+  const MSG={"auth/email-already-in-use":"An account with that email already exists. Try logging in.","auth/invalid-credential":"Wrong email or password.","auth/wrong-password":"Wrong email or password.","auth/user-not-found":"Wrong email or password.","auth/invalid-email":"Enter a valid email address.","auth/weak-password":"Password must be at least 6 characters.","auth/operation-not-allowed":"Email sign-in is not turned on in Firebase yet.","auth/too-many-requests":"Too many tries. Wait a minute and try again.","auth/network-request-failed":"No internet connection."};
+  const authMsg=e=>MSG[e.code]||e.message;
+  const wrap=u=>({id:u.uid,email:u.email,user_metadata:{name:u.displayName||""}});
+  async function readRows(t,f){
+    const q=k=>(f.find(x=>x[0]==k)||[])[1];let snap;
+    if(t=="history")snap=await db.ref("history/"+q("user_id")).get();
+    else if(t=="comments"&&q("video_id")!=null)snap=await db.ref("comments").orderByChild("video_id").equalTo(Number(q("video_id"))).get();
+    else snap=await db.ref(t).get();
+    return Object.values(snap.val()||{});
+  }
+  const from=t=>{
+    const o={op:"select",f:[],ord:null,lim:null,one:false,row:null};
+    const m=x=>o.f.every(([k,v])=>x[k]==v);
+    const run=async()=>{
+      try{
+        if(o.op=="insert"){
+          const x={...o.row};
+          if(t=="videos"||t=="comments")x.id=x.id||newId();
+          x.created_at=x.created_at||new Date().toISOString();
+          if(t=="videos")x.views=0;
+          if(t=="profiles"){x.pic=x.pic||"";x.chips=x.chips||0}
+          await db.ref(P[t](x)).set(x);return{data:o.one?x:[x],error:null};
+        }
+        if(o.op=="upsert"){await db.ref(P[t](o.row)).set(o.row);return{data:null,error:null}}
+        const eqv=k=>(o.f.find(x=>x[0]==k)||[])[1];let rows;
+        if((o.op=="update"||o.op=="delete")&&KEYS[t].every(k=>eqv(k)!=null))rows=[Object.fromEntries(KEYS[t].map(k=>[k,eqv(k)]))];
+        else rows=(await readRows(t,o.f)).filter(m);
+        if(o.op=="update"){await Promise.all(rows.map(r=>db.ref(P[t](r)).update(o.row)));return{data:null,error:null}}
+        if(o.op=="delete"){await Promise.all(rows.map(r=>db.ref(P[t](r)).remove()));return{data:null,error:null}}
+        if(o.ord)rows=[...rows].sort((a,b)=>(a[o.ord[0]]>b[o.ord[0]]?1:-1)*o.ord[1]);
+        if(o.lim)rows=rows.slice(0,o.lim);
+        return{data:o.one?rows[0]:rows,error:null};
+      }catch(e){return{data:null,error:{message:e.message}}}
+    };
+    const b={select(){return b},insert(r){o.op="insert";o.row=r;return b},update(r){o.op="update";o.row=r;return b},delete(){o.op="delete";return b},upsert(r){o.op="upsert";o.row=r;return b},
+      eq(k,v){o.f.push([k,v]);return b},order(k,a){o.ord=[k,a&&a.ascending===false?-1:1];return b},limit(n){o.lim=n;return b},single(){o.one=true;return b},
+      then(res,rej){return run().then(res,rej)}};
+    return b;
+  };
+  return{from,
+    rpc:(n,a)=>db.ref("videos/"+a.vid+"/views").transaction(v=>(v||0)+1).then(()=>({error:null})).catch(e=>({error:{message:e.message}})),
+    auth:{
+      async signUp({email,password,options}){
+        try{const c=await auth.createUserWithEmailAndPassword(email,password),n=(options&&options.data&&options.data.name)||"";
+          if(n)await c.user.updateProfile({displayName:n});
+          const u=wrap(c.user);u.user_metadata.name=n;return{data:{user:u,session:{user:u}},error:null}}
+        catch(e){return{data:{},error:{message:authMsg(e)}}}
+      },
+      async signInWithPassword({email,password}){
+        try{const c=await auth.signInWithEmailAndPassword(email,password),u=wrap(c.user);return{data:{user:u,session:{user:u}},error:null}}
+        catch(e){return{data:{},error:{message:authMsg(e)}}}
+      },
+      getSession:()=>new Promise(res=>{const un=auth.onAuthStateChanged(u=>{un();res({data:{session:u?{user:wrap(u)}:null}})})}),
+      signOut:()=>auth.signOut().then(()=>({error:null}))
+    },
+    storage:{from:()=>({
+      async upload(p,b){
+        try{
+          const d=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
+          const b64=d.slice(d.indexOf(";base64,")+8),c={};
+          for(let k=0;k*500000<b64.length;k++)c[k]=b64.slice(k*500000,(k+1)*500000);
+          await db.ref("videoData/"+K(p)).set({type:b.type||"video/webm",c});return{error:null};
+        }catch(e){return{error:{message:e.message}}}
+      },
+      getPublicUrl:p=>({data:{publicUrl:"fb:"+p}}),
+      async resolve(p){
+        const s=(await db.ref("videoData/"+K(p)).get()).val();if(!s)throw new Error("Video data not found");
+        const b64=Object.keys(s.c).sort((x,y)=>x-y).map(k=>s.c[k]).join("");
+        const blob=await(await fetch("data:"+s.type.split(";")[0]+";base64,"+b64)).blob();return URL.createObjectURL(blob);
+      },
+      async remove(ps){for(const p of ps)await db.ref("videoData/"+K(p)).remove();return{error:null}}
+    })}
+  };
+}
+
+/* ===== PASTE YOUR FIREBASE apiKEY HERE (see FIREBASE_SETUP.md) ===== */
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyDV-zukKK0vBekHDL-Ob9k_s9zFSx4nZP8",
+  authDomain:"lake-55511.firebaseapp.com",
+  databaseURL:"https://lake-55511-default-rtdb.firebaseio.com",
+  projectId:"lake-55511"
+};
+/* ==================================================================== */
+const configured=!FIREBASE_CONFIG.apiKey.startsWith("PASTE");
+const LIM=configured?{ms:45000,bps:1000000,w:854,h:480,max:9e6}:{ms:0,bps:2500000,w:1280,h:720,max:0};
+let sb=null;
+const $=i=>document.getElementById(i);
+const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
+const fire=q=>q.then(r=>{if(r&&r.error)console.error(r.error)});
+sb=configured?(window.firebase?firebaseClient(FIREBASE_CONFIG):null):localClient();
+let me=null,profiles=[],videos=[],subs=[],likes=[],feed="all",hist=[],cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup",busy=false;
+let camOn=store("camOn",false),timer=null,gkey=null,tt;
+
+const pby=id=>profiles.find(p=>p.id==id);
+const uname=u=>u?u.name:"Unknown";
+const av=(u,s)=>`<span class="mav" style="width:${s}px;height:${s}px;${u&&u.pic?`background-image:url(${u.pic})`:""}">${u&&!u.pic?esc(u.name.charAt(0).toUpperCase()):""}</span>`;
+const setAv=(el,u)=>{el.style.backgroundImage=u.pic?`url(${u.pic})`:"";el.style.backgroundSize="cover";el.style.backgroundPosition="center";el.textContent=u.pic?"":u.name.charAt(0).toUpperCase()};
+const thumbStyle=v=>v.poster?`background-image:url(${v.poster})`:"";
+const urlCache={};
+async function playUrl(v){if(urlCache[v.path])return urlCache[v.path];const st=sb.storage.from("videos");const u=st.resolve?await st.resolve(v.path):v.url;urlCache[v.path]=u;return u}
+function lazyPlay(el){
+  const v=videos.find(x=>x.id==el.dataset.lazy);if(!v)return;el.style.opacity=.6;toast("Loading video...");
+  playUrl(v).then(u=>{const d=document.createElement("video");d.controls=true;d.playsInline=true;d.src=u;el.replaceWith(d);d.play().catch(()=>{})}).catch(()=>{el.style.opacity=1;toast("Could not load the video.")});
+}
+function makePoster(blob){return new Promise(res=>{
+  const v=document.createElement("video"),u=URL.createObjectURL(blob);v.muted=true;v.playsInline=true;v.preload="auto";
+  const done=d=>{URL.revokeObjectURL(u);res(d)};
+  v.onloadeddata=()=>{v.currentTime=.5};
+  v.onseeked=()=>{try{const c=document.createElement("canvas");c.width=320;c.height=180;c.getContext("2d").drawImage(v,0,0,320,180);done(c.toDataURL("image/jpeg",.7))}catch(e){done("")}};
+  v.onerror=()=>done("");setTimeout(()=>done(""),6000);v.src=u})}
+const nviews=n=>n+(n==1?" view":" views");
+const vurl=path=>sb.storage.from("videos").getPublicUrl(path).data.publicUrl;
+
+function setChips(n){me.chips=n;$("chipn").textContent=n;fire(sb.from("profiles").update({chips:n}).eq("id",me.id))}
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(tt);tt=setTimeout(()=>e.style.display="none",3000)}
+
+/* ---------- Shared data ---------- */
+async function loadAll(){
+  const [p,v,s,h,l]=await Promise.all([
+    sb.from("profiles").select("*"),
+    sb.from("videos").select("*").order("created_at",{ascending:false}),
+    sb.from("subs").select("*"),
+    sb.from("history").select("video_id").eq("user_id",me.id).order("watched_at",{ascending:false}).limit(8),
+    sb.from("likes").select("*")]);
+  const bad=p.error||v.error||s.error;
+  if(bad){toast("Could not load data: "+bad.message);return}
+  profiles=p.data;subs=s.data;likes=(l&&l.data)||[];hist=(h.data||[]).map(x=>x.video_id);
+  videos=v.data.map(x=>({id:x.id,uid:x.user_id,title:x.title,path:x.path,url:vurl(x.path),poster:x.poster||"",views:x.views,created:new Date(x.created_at).getTime()}));
+  const m=pby(me.id);if(m){m.email=me.email;me=m;$("chipn").textContent=me.chips;setAv($("open-profile"),me)}
+}
+async function refresh(){
+  if(busy||!me)return;busy=true;
+  try{await loadAll()}finally{busy=false}
+  const on=document.querySelector(".view.on"),playing=[...document.querySelectorAll("video")].some(v=>!v.paused&&!v.ended&&!v.muted);
+  if(playing)return;
+  if(on&&on.id=="home")renderHome();else if(on&&on.id=="profile")renderProfile();
+}
+setInterval(()=>{if(document.querySelector("#home.on"))refresh()},20000);
+
+function go(id,skip){
+  document.body.classList.toggle("hb",id=="home");
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id==id));
+  if(id!="watch")$("player").pause();
+  if(id!="watch"&&id!="gamesview")stopGame();
+  if(id=="watch")$("slot-watch").appendChild($("games"));
+  if(id=="gamesview")$("slot-games").appendChild($("games"));
+  if(id!="film"&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $("pop").hidden=true;
+  if(me){if(id=="profile")renderProfile();if(id=="settings")renderSettings();if(id=="edit")renderEdit();
+    if(!skip&&(id=="home"||id=="profile"))refresh()}
+  scrollTo(0,0);
+}
+
+/* ---------- Accounts ---------- */
+function setMode(m){mode=m;const s=m=="signup";$("a-name").hidden=!s;$("a-submit").textContent=s?"Create account":"Log in";
+  $("a-switch").textContent=s?"I already have an account":"Create a new account";$("a-pass").autocomplete=s?"new-password":"current-password";$("a-err").textContent=""}
+$("a-switch").onclick=()=>setMode(mode=="signup"?"login":"signup");
+async function enter(user){
+  me={id:user.id,email:user.email};
+  await loadAll();
+  if(!pby(user.id)){
+    await sb.from("profiles").insert({id:user.id,name:(user.user_metadata&&user.user_metadata.name)||user.email.split("@")[0]});
+    await loadAll();
+  }
+  if(!pby(user.id)){$("a-err").textContent="Could not load your profile. Check your Firebase rules (see FIREBASE_SETUP.md).";return}
+  $("chips").hidden=false;renderHome();go("home",true);
+}
+const submitAuth=async()=>{
+  const err=$("a-err");
+  if(!sb){err.textContent="Could not load the database library. Check your internet connection.";return}
+  const email=$("a-email").value.trim().toLowerCase(),pw=$("a-pass").value,name=$("a-name").value.trim();
+  if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent="Enter a valid email address.";return}
+  if(pw.length<6){err.textContent="Password must be at least 6 characters.";return}
+  err.textContent="Please wait...";
+  if(mode=="signup"){
+    const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{name:name||email.split("@")[0]}}});
+    if(error){err.textContent=error.message;return}
+    if(!data.session){err.textContent="Account created. Check your email to confirm it, then log in.";return}
+    $("a-pass").value="";err.textContent="";await enter(data.user);
+  }else{
+    const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+    if(error){err.textContent=error.message;return}
+    $("a-pass").value="";err.textContent="";await enter(data.user);
+  }
+};
+$("a-submit").onclick=()=>submitAuth().catch(e=>{$("a-err").textContent="Something went wrong: "+e.message});
+["a-name","a-email","a-pass"].forEach(i=>$(i).addEventListener("keydown",e=>{if(e.key=="Enter")$("a-submit").click()}));
+async function signOut(){await sb.auth.signOut();me=null;$("chips").hidden=true;setMode("login");go("auth-view")}
+$("logout").onclick=signOut;
+
+/* ---------- Pages ---------- */
+const nlikes=id=>likes.filter(l=>l.video_id==id).length;
+function paintActs(){
+  document.querySelectorAll("[data-like]").forEach(b=>{const id=b.dataset.like,on=likes.some(l=>l.user_id==me.id&&l.video_id==id);
+    b.textContent=(on?"\u2665 Liked":"\u2661 Like")+" ("+nlikes(id)+")";b.setAttribute("aria-pressed",on)});
+  document.querySelectorAll("[data-sub]").forEach(b=>{const u=b.dataset.sub;b.hidden=u==me.id;
+    b.textContent=subs.some(x=>x.subscriber==me.id&&x.creator==u)?"Subscribed":"Subscribe"});
+}
+async function toggleLike(id){
+  const on=likes.some(l=>l.user_id==me.id&&l.video_id==id);
+  const r=on?await sb.from("likes").delete().eq("user_id",me.id).eq("video_id",id):await sb.from("likes").insert({user_id:me.id,video_id:Number(id)});
+  if(r.error){toast("Could not like: "+r.error.message);return}
+  likes=on?likes.filter(l=>!(l.user_id==me.id&&l.video_id==id)):[...likes,{user_id:me.id,video_id:Number(id)}];paintActs();
+}
+function renderHome(){
+  document.querySelectorAll("[data-feed]").forEach(b=>b.classList.toggle("act",b.dataset.feed==feed));
+  const list=feed=="subs"?videos.filter(v=>subs.some(x=>x.subscriber==me.id&&x.creator==v.uid)):videos;
+  $("grid").innerHTML=list.length?list.map(v=>`<div class="card"><div class="open" role="button" tabindex="0" data-id="${v.id}">
+    <div class="thumb" style="${thumbStyle(v)}"><span>&#9654;</span></div>
+    <div class="meta"><strong>${esc(v.title)}</strong><span>${av(pby(v.uid),20)}${esc(uname(pby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>
+    <div class="acts"><button class="mini" data-like="${v.id}">Like</button><button class="mini" data-sub="${v.uid}">Subscribe</button></div></div>`).join(""):
+    `<p class="empty">${feed=="subs"?"Nothing here yet. Subscribe to creators and their videos will show up in this tab.":"No videos yet. Earn 3 chips in a mini game, enable your camera in Settings, then tap Film to post the first one."}</p>`;
+  paintActs();
+}
+async function openVideo(id){
+  cur=videos.find(v=>v.id==id);if(!cur)return;
+  const u=pby(cur.uid),p=$("player");p.removeAttribute("src");p.load();
+  cur.views++;fire(sb.rpc("increment_views",{vid:cur.id}));
+  hist=[cur.id,...hist.filter(x=>x!=cur.id)].slice(0,8);
+  fire(sb.from("history").upsert({user_id:me.id,video_id:cur.id,watched_at:new Date().toISOString()}));
+  $("w-title").textContent=cur.title;
+  $("w-meta").innerHTML=`<button class="back" data-prof="${cur.uid}">${av(u,28)}${esc(uname(u))}</button> ${nviews(cur.views)}`;
+  cur.comments=[];renderComments();renderActions();go("watch",true);
+  playUrl(cur).then(u2=>{if(cur&&cur.id==id){p.src=u2;p.play().catch(()=>{})}}).catch(()=>toast("Could not load the video."));
+  const c=await sb.from("comments").select("*").eq("video_id",id).order("created_at",{ascending:false});
+  if(c.data&&cur&&cur.id==id){cur.comments=c.data;renderComments()}
+}
+function renderActions(){$("like-btn").dataset.like=cur.id;$("wsub-btn").dataset.sub=cur.uid;paintActs()}
+function renderComments(){
+  $("c-head").textContent="Comments ("+cur.comments.length+")";
+  $("clist").innerHTML=cur.comments.length?cur.comments.map(c=>`<div class="cm">${av(pby(c.user_id),24)}<b>${esc(uname(pby(c.user_id)))}</b><div>${esc(c.text)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
+}
+$("cbtn").onclick=async()=>{
+  const t=$("cin").value.trim();if(!t)return;
+  const r=await sb.from("comments").insert({video_id:cur.id,user_id:me.id,text:t}).select().single();
+  if(r.error){toast("Could not post comment: "+r.error.message);return}
+  $("cin").value="";cur.comments.unshift(r.data);renderComments();
+};
+
+function showProfile(uid){pid=uid;go("profile")}
+function renderProfile(){
+  const u=pby(pid)||me,own=u.id==me.id;pid=u.id;
+  setAv($("p-avatar"),u);$("p-name").textContent=u.name;$("edit-btn").hidden=!own;
+  $("p-email").textContent=own?me.email:"";
+  const sl=subs.filter(x=>x.creator==u.id).map(x=>pby(x.subscriber)).filter(Boolean);
+  $("p-subs").textContent=sl.length+(sl.length==1?" subscriber":" subscribers");
+  $("subs-panel").innerHTML=sl.length?sl.map(q=>`<div class="sub-i" role="button" tabindex="0" data-prof="${q.id}">${av(q,28)}${esc(q.name)}</div>`).join(""):'<div class="m">No subscribers yet.</div>';
+  $("open-settings").hidden=!own;$("sub-btn").hidden=own;
+  $("sub-btn").textContent=subs.some(x=>x.subscriber==me.id&&x.creator==u.id)?"Subscribed":"Subscribe";
+  $("p-created").textContent="Account created "+new Date(u.created_at).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+  const mine=videos.filter(v=>v.uid==u.id);
+  $("posts-panel").innerHTML=mine.length?mine.map(v=>`<div class="pv"><div class="thumb" role="button" tabindex="0" data-lazy="${v.id}" style="${thumbStyle(v)}"><span>&#9654;</span></div><strong>${esc(v.title)}</strong><div class="m">${nviews(v.views)}</div><div class="acts"><button class="mini" data-like="${v.id}">Like</button></div>${own?`<button class="btn del" data-del="${v.id}">Delete video</button>`:""}</div>`).join(""):'<div class="m">No videos posted yet.</div>';
+  paintActs();$("hist-sec").hidden=!own;
+  const h=hist.map(id=>videos.find(v=>v.id==id)).filter(Boolean);
+  $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb" style="${thumbStyle(v)}"></div><div><strong>${esc(v.title)}</strong><span>${esc(uname(pby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
+}
+async function toggleSub(uid){
+  const on=subs.some(x=>x.subscriber==me.id&&x.creator==uid);
+  const r=on?await sb.from("subs").delete().eq("subscriber",me.id).eq("creator",uid):await sb.from("subs").insert({subscriber:me.id,creator:uid});
+  if(r.error){toast(r.error.message);return}
+  subs=on?subs.filter(x=>!(x.subscriber==me.id&&x.creator==uid)):[...subs,{subscriber:me.id,creator:uid}];
+  renderProfile();paintActs();
+}
+$("sub-btn").onclick=()=>toggleSub(pid);
+$("p-subs").onclick=()=>$("subs-panel").classList.toggle("open");
+$("posts-toggle").onclick=()=>{const o=$("posts-panel").classList.toggle("open");$("posts-toggle").setAttribute("aria-expanded",o)};
+async function delVideo(id,btn){
+  const v=videos.find(x=>x.id==id);
+  if(!v||v.uid!=me.id)return;
+  if(!btn.dataset.armed){btn.dataset.armed=1;btn.textContent="Tap again to confirm delete";
+    setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent="Delete video"}},4000);return}
+  const r=await sb.from("videos").delete().eq("id",v.id);
+  if(r.error){toast("Could not delete: "+r.error.message);return}
+  fire(sb.storage.from("videos").remove([v.path]));
+  videos=videos.filter(x=>x!==v);renderProfile();renderHome();toast("Video deleted");
+}
+
+/* ---------- Edit profile ---------- */
+function renderEdit(){ePic=me.pic||"";$("e-name").value=me.name;setAv($("e-avatar"),{name:me.name,pic:ePic})}
+$("e-pick").onclick=()=>$("e-file").click();
+$("e-file").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const img=new Image();
+  img.onload=()=>{const c=document.createElement("canvas");c.width=c.height=256;const s=Math.min(img.width,img.height);
+    c.getContext("2d").drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,256,256);
+    ePic=c.toDataURL("image/jpeg",.85);URL.revokeObjectURL(img.src);setAv($("e-avatar"),{name:me.name,pic:ePic})};
+  img.onerror=()=>toast("That file is not an image.");img.src=URL.createObjectURL(f);e.target.value="";
+};
+$("e-rm").onclick=()=>{ePic="";setAv($("e-avatar"),{name:me.name,pic:""})};
+$("e-save").onclick=async()=>{
+  const n=$("e-name").value.trim();if(!n){toast("Enter a name.");return}
+  const r=await sb.from("profiles").update({name:n,pic:ePic}).eq("id",me.id);
+  if(r.error){toast("Could not save: "+r.error.message);return}
+  me.name=n;me.pic=ePic;setAv($("open-profile"),me);renderHome();toast("Profile saved");showProfile(me.id);
+};
+
+/* ---------- Mini games ---------- */
+const cv=$("cv"),g=cv.getContext("2d"),W=320;
+function earn(n,why){setChips(me.chips+n);toast("+"+n+" chip"+(n>1?"s":"")+": "+why)}
+let gtok=0;
+function stopGame(keep){clearInterval(timer);timer=null;gtok++;if(gkey)document.removeEventListener("keydown",gkey);gkey=null;cv.onpointerdown=null;cv.onpointermove=null;if(!keep){setFull(false);$("gbox").hidden=true}}
+function setFull(on){const b=$("gbox");b.classList.toggle("full",on);$("gfull").textContent=on?"Exit full screen":"Enlarge";
+  if(on){if(b.requestFullscreen)b.requestFullscreen().catch(()=>{})}else if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}
+const txt=(t,x,y,z)=>{g.fillStyle="#fff";g.font=z+"px sans-serif";g.textAlign="left";g.textBaseline="alphabetic";g.fillText(t,x,y)};
+function startGame(k,full){stopGame(true);$("gbox").hidden=false;$("pad").hidden=!(k=="road"||k=="snake");({road,zombie,build,catchg,memory,snake,flap,dodge})[k]();if(full)setFull(true)}
+const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*W/r.height]};
+
+function road(){
+  const S=40,cars=[];let p;const reset=()=>p={x:4,y:7};reset();
+  for(let r=1;r<7;r++)for(let k=0;k<2;k++)cars.push({r,x:k*170+r*23,v:(r%2?1:-1)*(1.4+r*.35)});
+  const mv=(dx,dy)=>{p.x=Math.max(0,Math.min(7,p.x+dx));p.y=Math.min(7,p.y+dy);if(p.y==0){earn(1,"you crossed the road");reset()}};
+  $("pad").onclick=e=>{const d=e.target.dataset.d;if(d)mv(...d.split(",").map(Number))};
+  gkey=e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(m){e.preventDefault();mv(...m)}};
+  document.addEventListener("keydown",gkey);
+  $("ginfo").textContent="Reach the top without getting hit. Each crossing earns 1 chip.";
+  timer=setInterval(()=>{
+    g.fillStyle="#5aa05a";g.fillRect(0,0,W,W);g.fillStyle="#444";g.fillRect(0,S,W,6*S);
+    cars.forEach(c=>{c.x+=c.v;if(c.x>W)c.x=-50;if(c.x<-50)c.x=W;g.fillStyle=c.r%2?"#e11d48":"#f59e0b";g.fillRect(c.x,c.r*S+8,46,24)});
+    g.fillStyle="#2563eb";g.fillRect(p.x*S+8,p.y*S+8,24,24);
+    if(cars.some(c=>c.r==p.y&&p.x*S+32>c.x&&p.x*S+8<c.x+46)){reset();toast("You got hit. Try again.")}
+  },30);
+}
+
+function zombie(){
+  let z=[],kills=0,life=3,t=0;
+  $("ginfo").textContent="Tap zombies before they reach you. Every 5 defeated earns 1 chip.";
+  cv.onpointerdown=e=>{const[x,y]=pos(e),i=z.findIndex(o=>Math.hypot(o.x-x,o.y-y)<28);if(i>-1){z.splice(i,1);if(++kills%5==0)earn(1,"zombies defeated")}};
+  timer=setInterval(()=>{
+    t++;if(t%30==0){const a=Math.random()*6.28;z.push({x:160+Math.cos(a)*170,y:160+Math.sin(a)*170})}
+    g.fillStyle="#1f2937";g.fillRect(0,0,W,W);g.font="28px serif";g.textAlign="center";g.textBaseline="middle";g.fillText("\u{1F9CD}",160,160);
+    z.forEach(o=>{const d=Math.hypot(160-o.x,160-o.y);o.x+=(160-o.x)/d;o.y+=(160-o.y)/d;g.fillText("\u{1F9DF}",o.x,o.y)});
+    const hit=z.filter(o=>Math.hypot(160-o.x,160-o.y)<20);
+    if(hit.length){z=z.filter(o=>!hit.includes(o));life-=hit.length;if(life<=0){life=3;kills=0;z=[];toast("Game over. Starting again.")}}
+    g.fillStyle="#fff";g.font="14px sans-serif";g.textAlign="left";g.fillText("Lives "+life+"   Defeated "+kills,8,14);
+  },30);
+}
+
+function build(){
+  let L=[{x:110,w:100}],c={x:0,w:100,d:2.6},n=0;
+  $("ginfo").textContent="Tap (or press space) to drop the block. Stack 5 floors to earn 1 chip.";
+  const drop=()=>{
+    const t=L[L.length-1],l=Math.max(c.x,t.x),r=Math.min(c.x+c.w,t.x+t.w);
+    if(r-l<=2){L=[{x:110,w:100}];c={x:0,w:100,d:2.6};n=0;toast("The tower fell. Build again.");return}
+    L.push({x:l,w:r-l});c={x:0,w:r-l,d:c.d*1.04};if(++n%5==0)earn(1,"tower built");
+  };
+  cv.onpointerdown=drop;
+  gkey=e=>{if(e.code=="Space"){e.preventDefault();drop()}};document.addEventListener("keydown",gkey);
+  timer=setInterval(()=>{
+    c.x+=c.d;if(c.x<0||c.x+c.w>W)c.d*=-1;
+    g.fillStyle="#bfdbfe";g.fillRect(0,0,W,W);const off=Math.max(0,L.length-12)*24;
+    L.forEach((b,i)=>{g.fillStyle=i%2?"#b45309":"#d97706";g.fillRect(b.x,W-24*(i+1)+off,b.w,22)});
+    g.fillStyle="#2563eb";g.fillRect(c.x,W-24*(L.length+1)+off,c.w,22);
+    g.fillStyle="#14181f";g.font="14px sans-serif";g.textAlign="left";g.fillText("Floors "+n,8,16);
+  },16);
+}
+
+
+
+function catchg(){
+  let x=160,items=[],score=0,miss=0,t=0;
+  $("ginfo").textContent="Move left and right to catch the falling chips. Catch 10 for 1 chip. Miss 5 and it restarts.";
+  cv.onpointermove=cv.onpointerdown=e=>{x=Math.max(32,Math.min(288,pos(e)[0]))};
+  gkey=e=>{const d={ArrowLeft:-26,ArrowRight:26}[e.key];if(d){e.preventDefault();x=Math.max(32,Math.min(288,x+d))}};
+  document.addEventListener("keydown",gkey);
+  timer=setInterval(()=>{
+    t++;if(t%40==0)items.push({x:20+Math.random()*280,y:-10});
+    items=items.filter(i=>{i.y+=2.2;if(i.y>296&&i.y<326&&Math.abs(i.x-x)<36){if(++score%10==0)earn(1,"chips caught");return false}if(i.y>336){miss++;return false}return true});
+    if(miss>=5){miss=0;score=0;toast("Too many missed. Starting over.")}
+    g.fillStyle="#0f172a";g.fillRect(0,0,W,W);
+    items.forEach(i=>{g.fillStyle="#f59e0b";g.beginPath();g.arc(i.x,i.y,9,0,6.3);g.fill()});
+    g.fillStyle="#38bdf8";g.fillRect(x-32,304,64,14);txt("Caught "+score+"   Missed "+miss+"/5",8,16,14);
+  },16);
+}
+function memory(){
+  const tok=gtok,E=["\u{1F34E}","\u{1F34C}","\u{1F347}","\u{1F353}","\u{1F352}","\u{1F349}","\u{1F34B}","\u{1F95D}"];
+  const c=[...E,...E].sort(()=>Math.random()-.5).map(e=>({e,up:0,done:0}));let pick=[],lock=0;
+  $("ginfo").textContent="Tap two cards to find a matching pair. Match all 8 pairs to earn 1 chip.";
+  cv.onpointerdown=e=>{
+    if(lock)return;const[x,y]=pos(e),k=c[Math.floor(y/80)*4+Math.floor(x/80)];if(!k||k.up||k.done)return;
+    k.up=1;pick.push(k);
+    if(pick.length==2){lock=1;setTimeout(()=>{if(tok!=gtok)return;
+      if(pick[0].e==pick[1].e)pick.forEach(k=>k.done=1);else pick.forEach(k=>k.up=0);
+      pick=[];lock=0;
+      if(c.every(k=>k.done)){earn(1,"memory match solved");setTimeout(()=>{if(tok==gtok)startGame("memory")},900)}},650)}
+  };
+  timer=setInterval(()=>{
+    g.fillStyle="#1e293b";g.fillRect(0,0,W,W);g.font="40px serif";g.textAlign="center";g.textBaseline="middle";
+    c.forEach((k,i)=>{const x=i%4*80,y=Math.floor(i/4)*80;g.fillStyle=k.done?"#166534":k.up?"#334155":"#2563eb";g.fillRect(x+4,y+4,72,72);
+      if(k.up||k.done){g.fillStyle="#fff";g.fillText(k.e,x+40,y+42)}});
+  },50);
+}
+function snake(){
+  const N=16,S=20;let s=[{x:8,y:8}],d={x:1,y:0},nd=d,n=0,f={x:3,y:3};
+  const spawn=()=>{do f={x:Math.floor(Math.random()*N),y:Math.floor(Math.random()*N)};while(s.some(q=>q.x==f.x&&q.y==f.y))};
+  const dir=(x,y)=>{if(!(x==-d.x&&y==-d.y))nd={x,y}};
+  $("pad").onclick=e=>{const v=e.target.dataset.d;if(v)dir(...v.split(",").map(Number))};
+  gkey=e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(m){e.preventDefault();dir(...m)}};
+  document.addEventListener("keydown",gkey);
+  $("ginfo").textContent="Steer the snake to eat apples. Eat 5 for 1 chip. Avoid the walls and yourself.";
+  timer=setInterval(()=>{
+    d=nd;const h={x:s[0].x+d.x,y:s[0].y+d.y};
+    if(h.x<0||h.y<0||h.x>=N||h.y>=N||s.some(q=>q.x==h.x&&q.y==h.y)){s=[{x:8,y:8}];d=nd={x:1,y:0};n=0;toast("Game over. Starting again.");return}
+    s.unshift(h);if(h.x==f.x&&h.y==f.y){if(++n%5==0)earn(1,"apples eaten");spawn()}else s.pop();
+    g.fillStyle="#14532d";g.fillRect(0,0,W,W);g.fillStyle="#dc2626";g.fillRect(f.x*S+2,f.y*S+2,S-4,S-4);
+    s.forEach((q,i)=>{g.fillStyle=i?"#86efac":"#fde047";g.fillRect(q.x*S+1,q.y*S+1,S-2,S-2)});txt("Apples "+n,6,14,12);
+  },130);
+}
+function flap(){
+  let y=160,v=0,p=[{x:340,g:150}],score=0;
+  const hop=()=>{v=-5.4},reset=()=>{y=160;v=0;p=[{x:340,g:150}];score=0;toast("Crashed. Try again.")};
+  cv.onpointerdown=hop;
+  gkey=e=>{if(e.code=="Space"||e.key=="ArrowUp"){e.preventDefault();hop()}};document.addEventListener("keydown",gkey);
+  $("ginfo").textContent="Tap or press space to hop through the gaps. Pass 3 gaps for 1 chip.";
+  timer=setInterval(()=>{
+    v+=.33;y+=v;p.forEach(o=>o.x-=2.2);
+    if(p[p.length-1].x<190)p.push({x:350,g:80+Math.random()*160});
+    p=p.filter(o=>o.x>-40);
+    p.forEach(o=>{if(!o.s&&o.x<30){o.s=1;if(++score%3==0)earn(1,"gaps passed")}});
+    if(y<8||y>312||p.some(o=>o.x<76&&o.x>24&&(y<o.g-46||y>o.g+46))){reset();return}
+    g.fillStyle="#7dd3fc";g.fillRect(0,0,W,W);g.fillStyle="#16a34a";
+    p.forEach(o=>{g.fillRect(o.x-18,0,36,o.g-46);g.fillRect(o.x-18,o.g+46,36,W)});
+    g.fillStyle="#facc15";g.beginPath();g.arc(50,y,11,0,6.3);g.fill();txt("Gaps "+score,6,16,14);
+  },16);
+}
+function dodge(){
+  let x=160,r=[],t=0;
+  cv.onpointermove=cv.onpointerdown=e=>{x=Math.max(14,Math.min(306,pos(e)[0]))};
+  gkey=e=>{const d={ArrowLeft:-26,ArrowRight:26}[e.key];if(d){e.preventDefault();x=Math.max(14,Math.min(306,x+d))}};document.addEventListener("keydown",gkey);
+  $("ginfo").textContent="Move your ship to dodge the rocks. Survive 15 seconds for 1 chip. It gets faster.";
+  timer=setInterval(()=>{
+    t++;if(t%Math.max(8,34-Math.floor(t/100))==0)r.push({x:12+Math.random()*296,y:-20,s:10+Math.random()*12,v:2.4+Math.min(4,t/500)});
+    r.forEach(o=>o.y+=o.v);r=r.filter(o=>o.y<350);
+    if(r.some(o=>Math.hypot(o.x-x,o.y-296)<o.s+9)){t=0;r=[];toast("Crash! Starting over.");return}
+    if(t&&t%900==0)earn(1,"survived 15 seconds");
+    g.fillStyle="#020617";g.fillRect(0,0,W,W);g.fillStyle="#94a3b8";
+    r.forEach(o=>{g.beginPath();g.arc(o.x,o.y,o.s,0,6.3);g.fill()});
+    g.fillStyle="#38bdf8";g.beginPath();g.moveTo(x,284);g.lineTo(x-12,306);g.lineTo(x+12,306);g.fill();txt("Time "+Math.floor(t*16/1000)+"s",6,16,14);
+  },16);
+}
+
+/* ---------- Settings ---------- */
+function renderSettings(){
+  $("cam-status").textContent=camOn?"Camera is on. You can film videos.":"Camera is off. Turn it on to film videos.";
+  $("cam-toggle").textContent=camOn?"Turn off camera":"Enable camera";
+}
+$("open-settings").onclick=()=>go("settings");
+$("cam-toggle").onclick=async()=>{
+  if(camOn){camOn=false;put("camOn",false);renderSettings();return}
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    s.getTracks().forEach(t=>t.stop());camOn=true;put("camOn",true);toast("Camera enabled");
+  }catch(e){toast("Camera blocked. Allow it in your browser's site settings, then try again.")}
+  renderSettings();
+};
+
+/* ---------- Filming ---------- */
+$("film-btn").onclick=()=>$("pop").hidden=!$("pop").hidden;
+$("enter").onclick=async()=>{
+  if(!camOn){toast("Enable your camera in Settings first.");return}
+  if(me.chips<3){toast("You need 3 chips. Earn them with the mini games.");return}
+  setChips(me.chips-3);go("film",true);$("postbox").hidden=true;$("rec").textContent="Start filming";
+  const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:LIM.w},height:{ideal:LIM.h},frameRate:{ideal:30}},audio:true});
+    c.srcObject=stream;$("fmsg").textContent="Camera ready. 3 chips used.";
+  }catch(e){setChips(me.chips+3);go("home");toast("Camera not available. Your 3 chips were returned.")}
+};
+$("rec").onclick=()=>{
+  if(!stream)return;
+  if(mr&&mr.state=="recording"){mr.stop();return}
+  const c=$("cam");c.controls=false;c.muted=true;c.removeAttribute("src");c.srcObject=stream;
+  chunks=[];const mime=["video/mp4;codecs=avc1,mp4a.40.2","video/mp4","video/webm;codecs=vp8,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t));
+  mr=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:LIM.bps}:{});mr.ondataavailable=e=>chunks.push(e.data);
+  mr.onstop=()=>{blobData=new Blob(chunks,{type:mr.mimeType});c.srcObject=null;c.src=URL.createObjectURL(blobData);c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("postbox").hidden=false};
+  const rm=mr;if(LIM.ms)setTimeout(()=>{if(rm.state=="recording"){rm.stop();toast("45 second limit reached.")}},LIM.ms);
+  mr.start(1000);$("rec").textContent="Stop filming";$("postbox").hidden=true;
+};
+$("post").onclick=async()=>{
+  if(!blobData)return;
+  const btn=$("post");
+  if(LIM.max&&blobData.size>LIM.max){toast("That video is too big to share. Film a shorter one.");return}
+  btn.disabled=true;toast("Uploading video...");const poster=await makePoster(blobData);
+  const type=(blobData.type||"video/webm").split(";")[0],path=`${me.id}/${Date.now()}.${type.includes("mp4")?"mp4":"webm"}`;
+  const up=await sb.storage.from("videos").upload(path,blobData,{contentType:type});
+  if(up.error){btn.disabled=false;toast("Upload failed: "+up.error.message);return}
+  const title=$("vtitle").value.trim()||"Video "+(videos.filter(v=>v.uid==me.id).length+1);
+  const ins=await sb.from("videos").insert({user_id:me.id,title,path,poster}).select().single();
+  btn.disabled=false;
+  if(ins.error){toast("Could not post: "+ins.error.message);return}
+  blobData=null;$("vtitle").value="";await loadAll();renderHome();go("home",true);toast("Video posted. Everyone can see it.");
+};
+
+/* ---------- Wiring and start ---------- */
+document.addEventListener("click",e=>{
+  const t=e.target,a=t.closest("[data-id]"),b=t.closest("[data-go]"),m=t.closest("[data-game]"),p=t.closest("[data-prof]"),d=t.closest("[data-del]");
+  if(t.closest("[data-lazy]")){lazyPlay(t.closest("[data-lazy]"))}else if(t.closest("[data-like]")){toggleLike(t.closest("[data-like]").dataset.like)}else if(t.closest("[data-sub]")){toggleSub(t.closest("[data-sub]").dataset.sub)}else if(t.closest("[data-feed]")){feed=t.closest("[data-feed]").dataset.feed;renderHome()}else if(d)delVideo(d.dataset.del,d);else if(p)showProfile(p.dataset.prof);else if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game,m.dataset.full);
+});
+document.addEventListener("keydown",e=>{
+  const a=e.target.closest&&e.target.closest("[data-id],[data-prof],[data-lazy]");
+  if(a&&e.key=="Enter"){a.dataset.lazy?lazyPlay(a):a.dataset.id?openVideo(a.dataset.id):showProfile(a.dataset.prof)}
+  if(e.key=="Escape"&&$("gbox").classList.contains("full"))setFull(false);
+});
+/* Videos recorded in some browsers have no length info; this makes them seekable and replayable */
+document.addEventListener("loadedmetadata",e=>{const v=e.target;if(v.tagName!="VIDEO")return;
+  if(v.duration===Infinity||isNaN(v.duration)){v.ontimeupdate=()=>{v.ontimeupdate=null;v.currentTime=0};v.currentTime=1e101}},true);
+document.addEventListener("ended",e=>{if(e.target.tagName=="VIDEO"&&e.target.id!="cam")e.target.currentTime=0},true);
+$("gstop").onclick=()=>stopGame();
+$("gfull").onclick=()=>setFull(!$("gbox").classList.contains("full"));
+document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&$("gbox").classList.contains("full"))setFull(false)});
+$("open-profile").onclick=()=>showProfile(me.id);
+$("edit-btn").onclick=()=>go("edit");
+(async()=>{
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  setMode("signup");
+  $("mode-note").textContent=configured?"Your account and videos are shared with everyone who uses this site.":"Local mode: accounts and videos are saved in this browser only. Connect Firebase (see FIREBASE_SETUP.md) to share them with everyone.";
+  if(!sb){$("a-err").textContent="Could not load the database library. Check your internet connection.";return}
+  if(sb.ready)await sb.ready;
+  const {data}=await sb.auth.getSession();
+  if(data.session)await enter(data.session.user);
+})();
+</script>
+</body>
+</html>
