@@ -81,6 +81,8 @@ body.hb::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5
 #posts-panel .pv .acts{padding:6px 0 0}
 .g .mini{margin-top:2px}
 .thumb{background-color:#334155}
+.warnbar{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;margin:10px 0;font-weight:600}
+.ad-row{padding:10px 0;border-bottom:1px solid var(--l)}
 </style>
 </head>
 <body>
@@ -103,7 +105,8 @@ body.hb::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5
 
 <main id="home" class="view">
   <h1>Videos</h1>
-  <p class="m">Videos posted by everyone with an account on this browser.</p>
+  <p class="m">Videos posted by everyone with an account.</p>
+  <div class="warnbar" id="warnbar" hidden></div>
   <div class="row"><button class="btn" data-go="gamesview">Play mini games</button></div>
   <div class="row"><button class="btn tab act" data-feed="all">All videos</button><button class="btn tab" data-feed="subs">Subscriptions</button></div>
   <div class="grid" id="grid"></div>
@@ -165,6 +168,7 @@ body.hb::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5
     <div class="email" id="p-email"></div>
     <div class="right"><button class="subs" id="p-subs" type="button">0 subscribers</button><button class="btn" id="open-settings">Settings</button><button class="btn" id="sub-btn">Subscribe</button></div>
   </div>
+  <div class="warnbar" id="warn-box" hidden></div>
   <div id="subs-panel"></div>
   <div class="posts-row">
     <button id="posts-toggle" aria-expanded="false">Posts</button>
@@ -194,7 +198,24 @@ body.hb::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5
   <div class="row"><button class="btn" id="cam-toggle"></button></div>
   <p class="m">Your camera is only used when you film a video.</p>
   <h3 style="margin-bottom:4px">Account</h3>
+  <div class="row" id="admin-row" hidden><button class="btn" data-go="admin">Admin panel</button></div>
   <div class="row"><button class="btn gray" id="logout">Log out</button></div>
+</main>
+
+<main id="admin" class="view">
+  <button class="back" data-go="settings">&larr; Back</button>
+  <h2>Admin panel</h2>
+  <p class="m">Type a reason, then tap Warn or Ban. The user sees the reason. A third warning bans the account.</p>
+  <div class="row"><input id="ad-reason" placeholder="Reason (shown to the user)" maxlength="120"></div>
+  <h3>Users</h3><div id="ad-users"></div>
+  <h3>Videos</h3><div id="ad-videos"></div>
+</main>
+
+<main id="banned" class="view">
+  <h1>Account banned</h1>
+  <p>This account was banned for breaking the rules.</p>
+  <p><b>Reason:</b> <span id="ban-reason"></span></p>
+  <div class="row"><button class="btn gray" id="b-out">Log out</button></div>
 </main>
 
 <main id="film" class="view">
@@ -215,8 +236,8 @@ body.hb::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5
 function localClient(){
   const J=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
   const W=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-  const T=J("l_db",{profiles:[],videos:[],comments:[],subs:[],history:[],likes:[]}),users=J("l_users",[]),urls={};
-  let seq=J("l_seq",1);T.likes=T.likes||[];
+  const T=J("l_db",{profiles:[],videos:[],comments:[],subs:[],history:[],likes:[],warnings:[],bans:[]}),users=J("l_users",[]),urls={};
+  let seq=J("l_seq",1);T.likes=T.likes||[];T.warnings=T.warnings||[];T.bans=T.bans||[];
   const idb=new Promise((res,rej)=>{const r=indexedDB.open("lfiles",1);r.onupgradeneeded=()=>r.result.createObjectStore("f",{keyPath:"path"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
   const tx=async(m,fn)=>{const d=await idb;return new Promise((res,rej)=>{const t=d.transaction("f",m),r=fn(t.objectStore("f"));t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error)})};
   /* copy saved videos into memory so replays play smoothly instead of streaming from disk */
@@ -279,8 +300,8 @@ function localClient(){
 function firebaseClient(cfg){
   firebase.initializeApp(cfg);
   const auth=firebase.auth(),db=firebase.database();
-  const P={profiles:r=>"profiles/"+r.id,videos:r=>"videos/"+r.id,comments:r=>"comments/"+r.id,subs:r=>"subs/"+r.subscriber+"_"+r.creator,likes:r=>"likes/"+r.user_id+"_"+r.video_id,history:r=>"history/"+r.user_id+"/"+r.video_id};
-  const KEYS={profiles:["id"],videos:["id"],comments:["id"],subs:["subscriber","creator"],likes:["user_id","video_id"],history:["user_id","video_id"]};
+  const P={profiles:r=>"profiles/"+r.id,videos:r=>"videos/"+r.id,comments:r=>"comments/"+r.id,subs:r=>"subs/"+r.subscriber+"_"+r.creator,likes:r=>"likes/"+r.user_id+"_"+r.video_id,history:r=>"history/"+r.user_id+"/"+r.video_id,warnings:r=>"warnings/"+r.user_id+"/"+r.id,bans:r=>"bans/"+r.user_id};
+  const KEYS={profiles:["id"],videos:["id"],comments:["id"],subs:["subscriber","creator"],likes:["user_id","video_id"],history:["user_id","video_id"],warnings:["user_id","id"],bans:["user_id"]};
   const newId=()=>Date.now()*1000+Math.floor(Math.random()*1000);
   const K=p=>p.replace(/[^A-Za-z0-9]/g,"_");
   const MSG={"auth/email-already-in-use":"An account with that email already exists. Try logging in.","auth/invalid-credential":"Wrong email or password.","auth/wrong-password":"Wrong email or password.","auth/user-not-found":"Wrong email or password.","auth/invalid-email":"Enter a valid email address.","auth/weak-password":"Password must be at least 6 characters.","auth/operation-not-allowed":"Email sign-in is not turned on in Firebase yet.","auth/too-many-requests":"Too many tries. Wait a minute and try again.","auth/network-request-failed":"No internet connection."};
@@ -289,9 +310,12 @@ function firebaseClient(cfg){
   async function readRows(t,f){
     const q=k=>(f.find(x=>x[0]==k)||[])[1];let snap;
     if(t=="history")snap=await db.ref("history/"+q("user_id")).get();
+    else if(t=="warnings"&&q("user_id")!=null)snap=await db.ref("warnings/"+q("user_id")).get();
+    else if(t=="bans"&&q("user_id")!=null){snap=await db.ref("bans/"+q("user_id")).get();const v=snap.val();return v?[v]:[]}
     else if(t=="comments"&&q("video_id")!=null)snap=await db.ref("comments").orderByChild("video_id").equalTo(Number(q("video_id"))).get();
     else snap=await db.ref(t).get();
-    return Object.values(snap.val()||{});
+    const val=snap.val()||{};
+    return t=="warnings"&&q("user_id")==null?Object.values(val).flatMap(o=>Object.values(o)):Object.values(val);
   }
   const from=t=>{
     const o={op:"select",f:[],ord:null,lim:null,one:false,row:null};
@@ -300,7 +324,7 @@ function firebaseClient(cfg){
       try{
         if(o.op=="insert"){
           const x={...o.row};
-          if(t=="videos"||t=="comments")x.id=x.id||newId();
+          if(t=="videos"||t=="comments"||t=="warnings")x.id=x.id||newId();
           x.created_at=x.created_at||new Date().toISOString();
           if(t=="videos")x.views=0;
           if(t=="profiles"){x.pic=x.pic||"";x.chips=x.chips||0}
@@ -342,14 +366,20 @@ function firebaseClient(cfg){
       async upload(p,b){
         try{
           const d=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
-          const b64=d.slice(d.indexOf(";base64,")+8),c={};
-          for(let k=0;k*500000<b64.length;k++)c[k]=b64.slice(k*500000,(k+1)*500000);
-          await db.ref("videoData/"+K(p)).set({type:b.type||"video/webm",c});return{error:null};
-        }catch(e){return{error:{message:e.message}}}
+          const b64=d.slice(d.indexOf(";base64,")+8),parts=[];
+          for(let k=0;k*500000<b64.length;k++)parts.push(b64.slice(k*500000,(k+1)*500000));
+          const base="videoData/"+K(p);
+          await db.ref(base).set({type:b.type||"video/webm",n:parts.length});
+          for(let k=0;k<parts.length;k+=6){
+            await Promise.all(parts.slice(k,k+6).map((x,j)=>db.ref(base+"/c/"+(k+j)).set(x)));
+            if(window.uploadProgress)uploadProgress(Math.min(parts.length,k+6),parts.length);
+          }
+          return{error:null};
+        }catch(e){db.ref("videoData/"+K(p)).remove().catch(()=>{});return{error:{message:e.message}}}
       },
       getPublicUrl:p=>({data:{publicUrl:"fb:"+p}}),
       async resolve(p){
-        const s=(await db.ref("videoData/"+K(p)).get()).val();if(!s)throw new Error("Video data not found");
+        const s=(await db.ref("videoData/"+K(p)).get()).val();if(!s||!s.c||Object.keys(s.c).length<(s.n||0))throw new Error("Video data not found");
         const b64=Object.keys(s.c).sort((x,y)=>x-y).map(k=>s.c[k]).join("");
         const blob=await(await fetch("data:"+s.type.split(";")[0]+";base64,"+b64)).blob();return URL.createObjectURL(blob);
       },
@@ -367,7 +397,9 @@ const FIREBASE_CONFIG={
 };
 /* ==================================================================== */
 const configured=!FIREBASE_CONFIG.apiKey.startsWith("PASTE");
-const LIM=configured?{ms:45000,bps:1000000,w:854,h:480,max:9e6}:{ms:0,bps:2500000,w:1280,h:720,max:0};
+const MAX_SECONDS=180;   /* longest video people can film when connected to Firebase (change this number) */
+const ADMIN_UIDS=["7pzU7xx2IeakDn5QN6SxsI1WdSe2"];   /* admin accounts: must match the UID in database.rules.json */
+const LIM=configured?{ms:MAX_SECONDS*1000,bps:800000,w:854,h:480,max:Math.round(MAX_SECONDS*800000/8*1.6)}:{ms:0,bps:2500000,w:1280,h:720,max:0};
 let sb=null;
 const $=i=>document.getElementById(i);
 const store=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
@@ -375,7 +407,7 @@ const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
 const fire=q=>q.then(r=>{if(r&&r.error)console.error(r.error)});
 sb=configured?(window.firebase?firebaseClient(FIREBASE_CONFIG):null):localClient();
-let me=null,profiles=[],videos=[],subs=[],likes=[],feed="all",hist=[],cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup",busy=false;
+let me=null,profiles=[],videos=[],subs=[],likes=[],feed="all",hist=[],warns=[],ban=null,isAdmin=false,allWarns=[],allBans=[],safetyLoaded=false,locked=0,lastStrike=0,viol=0,lastEarn=0,cur=null,pid=null,stream=null,mr=null,chunks=[],blobData=null,ePic="",mode="signup",busy=false;
 let camOn=store("camOn",false),timer=null,gkey=null,tt;
 
 const pby=id=>profiles.find(p=>p.id==id);
@@ -414,10 +446,12 @@ async function loadAll(){
   profiles=p.data;subs=s.data;likes=(l&&l.data)||[];hist=(h.data||[]).map(x=>x.video_id);
   videos=v.data.map(x=>({id:x.id,uid:x.user_id,title:x.title,path:x.path,url:vurl(x.path),poster:x.poster||"",views:x.views,created:new Date(x.created_at).getTime()}));
   const m=pby(me.id);if(m){m.email=me.email;me=m;$("chipn").textContent=me.chips;setAv($("open-profile"),me)}
+  await loadSafety();
 }
 async function refresh(){
   if(busy||!me)return;busy=true;
   try{await loadAll()}finally{busy=false}
+  if(ban){showBanned();return}
   const on=document.querySelector(".view.on"),playing=[...document.querySelectorAll("video")].some(v=>!v.paused&&!v.ended&&!v.muted);
   if(playing)return;
   if(on&&on.id=="home")renderHome();else if(on&&on.id=="profile")renderProfile();
@@ -433,7 +467,7 @@ function go(id,skip){
   if(id=="gamesview")$("slot-games").appendChild($("games"));
   if(id!="film"&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   $("pop").hidden=true;
-  if(me){if(id=="profile")renderProfile();if(id=="settings")renderSettings();if(id=="edit")renderEdit();
+  if(me){if(id=="admin")renderAdmin();if(id=="profile")renderProfile();if(id=="settings")renderSettings();if(id=="edit")renderEdit();
     if(!skip&&(id=="home"||id=="profile"))refresh()}
   scrollTo(0,0);
 }
@@ -443,13 +477,14 @@ function setMode(m){mode=m;const s=m=="signup";$("a-name").hidden=!s;$("a-submit
   $("a-switch").textContent=s?"I already have an account":"Create a new account";$("a-pass").autocomplete=s?"new-password":"current-password";$("a-err").textContent=""}
 $("a-switch").onclick=()=>setMode(mode=="signup"?"login":"signup");
 async function enter(user){
-  me={id:user.id,email:user.email};
+  me={id:user.id,email:user.email};safetyLoaded=false;
   await loadAll();
   if(!pby(user.id)){
     await sb.from("profiles").insert({id:user.id,name:(user.user_metadata&&user.user_metadata.name)||user.email.split("@")[0]});
     await loadAll();
   }
   if(!pby(user.id)){$("a-err").textContent="Could not load your profile. Check your Firebase rules (see FIREBASE_SETUP.md).";return}
+  if(ban){showBanned();return}
   $("chips").hidden=false;renderHome();go("home",true);
 }
 const submitAuth=async()=>{
@@ -484,6 +519,7 @@ function paintActs(){
     b.textContent=subs.some(x=>x.subscriber==me.id&&x.creator==u)?"Subscribed":"Subscribe"});
 }
 async function toggleLike(id){
+  if(!allow("likes",15,60000))return;
   const on=likes.some(l=>l.user_id==me.id&&l.video_id==id);
   const r=on?await sb.from("likes").delete().eq("user_id",me.id).eq("video_id",id):await sb.from("likes").insert({user_id:me.id,video_id:Number(id)});
   if(r.error){toast("Could not like: "+r.error.message);return}
@@ -497,7 +533,7 @@ function renderHome(){
     <div class="meta"><strong>${esc(v.title)}</strong><span>${av(pby(v.uid),20)}${esc(uname(pby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>
     <div class="acts"><button class="mini" data-like="${v.id}">Like</button><button class="mini" data-sub="${v.uid}">Subscribe</button></div></div>`).join(""):
     `<p class="empty">${feed=="subs"?"Nothing here yet. Subscribe to creators and their videos will show up in this tab.":"No videos yet. Earn 3 chips in a mini game, enable your camera in Settings, then tap Film to post the first one."}</p>`;
-  paintActs();
+  paintActs();renderWarns(false);
 }
 async function openVideo(id){
   cur=videos.find(v=>v.id==id);if(!cur)return;
@@ -515,10 +551,11 @@ async function openVideo(id){
 function renderActions(){$("like-btn").dataset.like=cur.id;$("wsub-btn").dataset.sub=cur.uid;paintActs()}
 function renderComments(){
   $("c-head").textContent="Comments ("+cur.comments.length+")";
-  $("clist").innerHTML=cur.comments.length?cur.comments.map(c=>`<div class="cm">${av(pby(c.user_id),24)}<b>${esc(uname(pby(c.user_id)))}</b><div>${esc(c.text)}</div></div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
+  $("clist").innerHTML=cur.comments.length?cur.comments.map(c=>`<div class="cm">${av(pby(c.user_id),24)}<b>${esc(uname(pby(c.user_id)))}</b><div>${esc(c.text)}</div>${isAdmin?`<button class="mini" data-ad="delcom:${c.id}">Delete (admin)</button>`:""}</div>`).join(""):'<p class="m">No comments yet. Be the first.</p>';
 }
 $("cbtn").onclick=async()=>{
   const t=$("cin").value.trim();if(!t)return;
+  if(!allow("comments",5,60000))return;
   const r=await sb.from("comments").insert({video_id:cur.id,user_id:me.id,text:t}).select().single();
   if(r.error){toast("Could not post comment: "+r.error.message);return}
   $("cin").value="";cur.comments.unshift(r.data);renderComments();
@@ -537,11 +574,12 @@ function renderProfile(){
   $("p-created").textContent="Account created "+new Date(u.created_at).toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
   const mine=videos.filter(v=>v.uid==u.id);
   $("posts-panel").innerHTML=mine.length?mine.map(v=>`<div class="pv"><div class="thumb" role="button" tabindex="0" data-lazy="${v.id}" style="${thumbStyle(v)}"><span>&#9654;</span></div><strong>${esc(v.title)}</strong><div class="m">${nviews(v.views)}</div><div class="acts"><button class="mini" data-like="${v.id}">Like</button></div>${own?`<button class="btn del" data-del="${v.id}">Delete video</button>`:""}</div>`).join(""):'<div class="m">No videos posted yet.</div>';
-  paintActs();$("hist-sec").hidden=!own;
+  paintActs();renderWarns(own);$("hist-sec").hidden=!own;
   const h=hist.map(id=>videos.find(v=>v.id==id)).filter(Boolean);
   $("hist").innerHTML=h.length?h.map(v=>`<div class="hist" role="button" tabindex="0" data-id="${v.id}"><div class="thumb" style="${thumbStyle(v)}"></div><div><strong>${esc(v.title)}</strong><span>${esc(uname(pby(v.uid)))}</span><span>${nviews(v.views)}</span></div></div>`).join(""):'<p class="m">Videos you watch will show up here.</p>';
 }
 async function toggleSub(uid){
+  if(!allow("subs",10,60000))return;
   const on=subs.some(x=>x.subscriber==me.id&&x.creator==uid);
   const r=on?await sb.from("subs").delete().eq("subscriber",me.id).eq("creator",uid):await sb.from("subs").insert({subscriber:me.id,creator:uid});
   if(r.error){toast(r.error.message);return}
@@ -582,7 +620,7 @@ $("e-save").onclick=async()=>{
 
 /* ---------- Mini games ---------- */
 const cv=$("cv"),g=cv.getContext("2d"),W=320;
-function earn(n,why){setChips(me.chips+n);toast("+"+n+" chip"+(n>1?"s":"")+": "+why)}
+function earn(n,why){const nw=Date.now();if(nw-lastEarn<3000||!allow("chips",20,300000)){toast("That was too fast. Chip not counted.");return}lastEarn=nw;setChips(me.chips+n);toast("+"+n+" chip"+(n>1?"s":"")+": "+why)}
 let gtok=0;
 function stopGame(keep){clearInterval(timer);timer=null;gtok++;if(gkey)document.removeEventListener("keydown",gkey);gkey=null;cv.onpointerdown=null;cv.onpointermove=null;if(!keep){setFull(false);$("gbox").hidden=true}}
 function setFull(on){const b=$("gbox");b.classList.toggle("full",on);$("gfull").textContent=on?"Exit full screen":"Enlarge";
@@ -726,6 +764,7 @@ function dodge(){
 
 /* ---------- Settings ---------- */
 function renderSettings(){
+  $("admin-row").hidden=!isAdmin;
   $("cam-status").textContent=camOn?"Camera is on. You can film videos.":"Camera is off. Turn it on to film videos.";
   $("cam-toggle").textContent=camOn?"Turn off camera":"Enable camera";
 }
@@ -758,14 +797,15 @@ $("rec").onclick=()=>{
   chunks=[];const mime=["video/mp4;codecs=avc1,mp4a.40.2","video/mp4","video/webm;codecs=vp8,opus","video/webm"].find(t=>MediaRecorder.isTypeSupported(t));
   mr=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:LIM.bps}:{});mr.ondataavailable=e=>chunks.push(e.data);
   mr.onstop=()=>{blobData=new Blob(chunks,{type:mr.mimeType});c.srcObject=null;c.src=URL.createObjectURL(blobData);c.muted=false;c.controls=true;c.play();$("rec").textContent="Film again";$("postbox").hidden=false};
-  const rm=mr;if(LIM.ms)setTimeout(()=>{if(rm.state=="recording"){rm.stop();toast("45 second limit reached.")}},LIM.ms);
+  const rm=mr;if(LIM.ms)setTimeout(()=>{if(rm.state=="recording"){rm.stop();toast(MAX_SECONDS+" second limit reached.")}},LIM.ms);
   mr.start(1000);$("rec").textContent="Stop filming";$("postbox").hidden=true;
 };
 $("post").onclick=async()=>{
   if(!blobData)return;
+  if(!allow("posts",3,600000))return;
   const btn=$("post");
   if(LIM.max&&blobData.size>LIM.max){toast("That video is too big to share. Film a shorter one.");return}
-  btn.disabled=true;toast("Uploading video...");const poster=await makePoster(blobData);
+  btn.disabled=true;toast("Uploading video...");window.uploadProgress=(d,t)=>toast("Uploading video... "+Math.round(d/t*100)+"%");const poster=await makePoster(blobData);
   const type=(blobData.type||"video/webm").split(";")[0],path=`${me.id}/${Date.now()}.${type.includes("mp4")?"mp4":"webm"}`;
   const up=await sb.storage.from("videos").upload(path,blobData,{contentType:type});
   if(up.error){btn.disabled=false;toast("Upload failed: "+up.error.message);return}
@@ -776,10 +816,102 @@ $("post").onclick=async()=>{
   blobData=null;$("vtitle").value="";await loadAll();renderHome();go("home",true);toast("Video posted. Everyone can see it.");
 };
 
+/* ---------- Safety: warnings, bans, anti-spam, admin ---------- */
+function allow(key,max,ms){
+  const n=Date.now(),a=((allow.h=allow.h||{})[key]||[]).filter(t=>n-t<ms);
+  if(a.length>=max){allow.h[key]=a;toast("Slow down a little.");if(++viol>=3){viol=0;strike("Spamming ("+key+")")}return false}
+  a.push(n);allow.h[key]=a;return true;
+}
+async function loadSafety(){
+  const prev=warns.length,first=!safetyLoaded;
+  const [w,bn]=await Promise.all([sb.from("warnings").select("*").eq("user_id",me.id).order("created_at",{ascending:true}),sb.from("bans").select("*").eq("user_id",me.id)]);
+  warns=w.data||[];ban=(bn.data&&bn.data[0])||null;isAdmin=ADMIN_UIDS.includes(me.id);
+  if(isAdmin){const [aw,ab]=await Promise.all([sb.from("warnings").select("*"),sb.from("bans").select("*")]);allWarns=aw.data||[];allBans=ab.data||[]}
+  if(!first&&warns.length>prev&&!ban)toast("You received a warning: "+warns[warns.length-1].reason);
+  safetyLoaded=true;
+}
+function renderWarns(own){
+  const n=warns.length,last=n?warns[n-1].reason:"";
+  const msg=n==0?"":n==1?"\u26A0 Warning 1 of 2: "+last+". You can get one more warning. After that, your next violation bans your account.":"\u26A0 Final warning (2 of 2): "+last+". Your next violation will ban your account.";
+  $("warnbar").hidden=!n;$("warnbar").textContent=msg;
+  const box=$("warn-box");box.hidden=!(own&&n);
+  box.innerHTML=n?"Warnings: "+Math.min(n,2)+" of 2"+warns.map(w=>`<div style="font-weight:400">${esc(new Date(w.created_at).toLocaleDateString())}: ${esc(w.reason)} (${w.by=="admin"?"from an admin":"automatic"})</div>`).join(""):"";
+}
+function showBanned(){$("chips").hidden=true;$("ban-reason").textContent=(ban&&ban.reason)||"Breaking the rules";go("banned",true)}
+async function strike(reason){
+  if(!configured||!me||ban||isAdmin)return;
+  const now=Date.now();if(now-lastStrike<60000)return;lastStrike=now;locked=now+20000;
+  const r=await sb.from("warnings").insert({user_id:me.id,reason,by:"auto"});
+  if(r.error){console.error(r.error);toast("Please slow down.");return}
+  warns=[...warns,r.data[0]];
+  if(warns.length>=3){
+    const b=await sb.from("bans").insert({user_id:me.id,reason:"Too many warnings: "+reason,by:"auto"});
+    ban=(b.data&&b.data[0])||{reason:"Too many warnings: "+reason};showBanned();return;
+  }
+  renderWarns(false);toast(warns.length==1?"Warning 1 of 2: "+reason:"Final warning (2 of 2): "+reason);
+}
+const clicks=[];
+function checkClicks(){
+  const c=clicks,n=c.length;
+  if(n>=12&&c[n-1]-c[n-12]<1000){clicks.length=0;strike("Clicking too fast (auto clicker)");return}
+  if(n>=11){const iv=[];for(let i=n-10;i<n;i++)iv.push(c[i]-c[i-1]);
+    const mean=iv.reduce((a,b)=>a+b)/10;
+    if(mean<500&&Math.max(...iv)-Math.min(...iv)<12){clicks.length=0;strike("Robotic click pattern (auto clicker)")}}
+}
+document.addEventListener("click",e=>{
+  if(!me||e.target.closest("#logout,#b-out"))return;
+  if(!e.isTrusted&&e.target.closest("[data-like],[data-sub],[data-game],[data-feed],#cbtn,#film-btn")){
+    e.stopImmediatePropagation();e.preventDefault();strike("Scripted clicking detected");return}
+  if(Date.now()<locked){e.stopImmediatePropagation();e.preventDefault();toast("Please wait a moment before clicking again.");return}
+  clicks.push(performance.now());if(clicks.length>20)clicks.shift();checkClicks();
+},true);
+document.addEventListener("pointerdown",e=>{if(me&&e.target.id=="cv"){clicks.push(performance.now());if(clicks.length>20)clicks.shift();checkClicks()}},true);
+
+function armed(btn){
+  if(btn.dataset.armed)return true;
+  btn.dataset.armed=1;const old=btn.textContent;btn.textContent="Tap again to confirm";
+  setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent=old}},4000);return false;
+}
+function renderAdmin(){
+  const cnt=id=>allWarns.filter(w=>w.user_id==id).length,isb=id=>allBans.some(b=>b.user_id==id);
+  $("ad-users").innerHTML=profiles.filter(q=>q.id!=me.id).map(q=>`<div class="ad-row"><div>${av(q,24)}<b>${esc(q.name)}</b> <span class="m">chips ${q.chips||0}, warnings ${Math.min(cnt(q.id),2)} of 2${isb(q.id)?", BANNED":""}</span></div>
+    <div class="acts" style="padding:6px 0 0"><button class="mini" data-prof="${q.id}">View</button><button class="mini" data-ad="warn:${q.id}">Warn</button><button class="mini" data-ad="ban:${q.id}">${isb(q.id)?"Unban":"Ban"}</button><button class="mini" data-ad="clear:${q.id}">Clear warnings</button></div></div>`).join("")||'<p class="m">No other users yet.</p>';
+  $("ad-videos").innerHTML=videos.map(v=>`<div class="ad-row"><b>${esc(v.title)}</b> <span class="m">by ${esc(uname(pby(v.uid)))}</span>
+    <div class="acts" style="padding:6px 0 0"><button class="mini" data-id="${v.id}">Watch</button><button class="mini" data-ad="delvid:${v.id}">Delete video</button></div></div>`).join("")||'<p class="m">No videos.</p>';
+}
+async function adAct(str,btn){
+  if(!isAdmin)return;
+  const i=str.indexOf(":"),act=str.slice(0,i),id=str.slice(i+1);
+  const fail=r=>{if(r.error){toast(r.error.message);return true}return false};
+  if(act=="warn"){
+    const reason=$("ad-reason").value.trim();if(!reason){toast("Type a reason first.");return}
+    const r=await sb.from("warnings").insert({user_id:id,reason,by:"admin"});if(fail(r))return;
+    allWarns.push(r.data[0]);
+    if(allWarns.filter(w=>w.user_id==id).length>=3&&!allBans.some(b=>b.user_id==id)){
+      const b=await sb.from("bans").insert({user_id:id,reason:"Too many warnings: "+reason,by:"admin"});if(!fail(b))allBans.push(b.data[0])}
+    toast("Warning sent.");
+  }else if(act=="ban"){
+    const b=allBans.find(x=>x.user_id==id);
+    if(b){const r=await sb.from("bans").delete().eq("user_id",id);if(fail(r))return;allBans=allBans.filter(x=>x!==b);toast("Account unbanned.")}
+    else{if(!armed(btn))return;const r=await sb.from("bans").insert({user_id:id,reason:$("ad-reason").value.trim()||"Banned by an admin",by:"admin"});if(fail(r))return;allBans.push(r.data[0]);toast("Account banned.")}
+  }else if(act=="clear"){
+    if(!armed(btn))return;const r=await sb.from("warnings").delete().eq("user_id",id);if(fail(r))return;allWarns=allWarns.filter(w=>w.user_id!=id);toast("Warnings cleared.");
+  }else if(act=="delvid"){
+    if(!armed(btn))return;const v=videos.find(x=>x.id==id);if(!v)return;
+    const r=await sb.from("videos").delete().eq("id",v.id);if(fail(r))return;
+    fire(sb.storage.from("videos").remove([v.path]));videos=videos.filter(x=>x!==v);renderHome();toast("Video deleted.");
+  }else if(act=="delcom"){
+    const r=await sb.from("comments").delete().eq("id",id);if(fail(r))return;
+    cur.comments=cur.comments.filter(c=>c.id!=id);renderComments();return;
+  }
+  renderAdmin();
+}
+$("b-out").onclick=()=>signOut();
+
 /* ---------- Wiring and start ---------- */
 document.addEventListener("click",e=>{
   const t=e.target,a=t.closest("[data-id]"),b=t.closest("[data-go]"),m=t.closest("[data-game]"),p=t.closest("[data-prof]"),d=t.closest("[data-del]");
-  if(t.closest("[data-lazy]")){lazyPlay(t.closest("[data-lazy]"))}else if(t.closest("[data-like]")){toggleLike(t.closest("[data-like]").dataset.like)}else if(t.closest("[data-sub]")){toggleSub(t.closest("[data-sub]").dataset.sub)}else if(t.closest("[data-feed]")){feed=t.closest("[data-feed]").dataset.feed;renderHome()}else if(d)delVideo(d.dataset.del,d);else if(p)showProfile(p.dataset.prof);else if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game,m.dataset.full);
+  if(t.closest("[data-ad]")){adAct(t.closest("[data-ad]").dataset.ad,t.closest("[data-ad]"))}else if(t.closest("[data-lazy]")){lazyPlay(t.closest("[data-lazy]"))}else if(t.closest("[data-like]")){toggleLike(t.closest("[data-like]").dataset.like)}else if(t.closest("[data-sub]")){toggleSub(t.closest("[data-sub]").dataset.sub)}else if(t.closest("[data-feed]")){feed=t.closest("[data-feed]").dataset.feed;renderHome()}else if(d)delVideo(d.dataset.del,d);else if(p)showProfile(p.dataset.prof);else if(a)openVideo(a.dataset.id);else if(b)go(b.dataset.go);else if(m)startGame(m.dataset.game,m.dataset.full);
 });
 document.addEventListener("keydown",e=>{
   const a=e.target.closest&&e.target.closest("[data-id],[data-prof],[data-lazy]");
