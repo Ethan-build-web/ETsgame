@@ -841,7 +841,7 @@ function showBanned(){$("chips").hidden=true;$("ban-reason").textContent=(ban&&b
 async function strike(reason){
   if(!configured||!me||ban||isAdmin)return;
   const now=Date.now();if(now-lastStrike<60000)return;lastStrike=now;locked=now+20000;
-  const r=await sb.from("warnings").insert({user_id:me.id,reason,by:"auto"});
+  const r=await sb.from("warnings").insert({user_id:me.id,id:String(warns.length+1),reason,by:"auto"});
   if(r.error){console.error(r.error);toast("Please slow down.");return}
   warns=[...warns,r.data[0]];
   if(warns.length>=3){
@@ -885,7 +885,7 @@ async function adAct(str,btn){
   const fail=r=>{if(r.error){toast(r.error.message);return true}return false};
   if(act=="warn"){
     const reason=$("ad-reason").value.trim();if(!reason){toast("Type a reason first.");return}
-    const r=await sb.from("warnings").insert({user_id:id,reason,by:"admin"});if(fail(r))return;
+    const r=await sb.from("warnings").insert({user_id:id,id:String(allWarns.filter(w=>w.user_id==id).length+1),reason,by:"admin"});if(fail(r))return;
     allWarns.push(r.data[0]);
     if(allWarns.filter(w=>w.user_id==id).length>=3&&!allBans.some(b=>b.user_id==id)){
       const b=await sb.from("bans").insert({user_id:id,reason:"Too many warnings: "+reason,by:"admin"});if(!fail(b))allBans.push(b.data[0])}
